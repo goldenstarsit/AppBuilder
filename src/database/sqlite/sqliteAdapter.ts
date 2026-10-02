@@ -1,4 +1,6 @@
 import Database from "better-sqlite3";
+import { mkdirSync } from "node:fs";
+import { dirname } from "node:path";
 import type {
   DatabaseAdapter,
   DatabaseRunResult,
@@ -8,6 +10,7 @@ export class SQLiteAdapter implements DatabaseAdapter {
   private readonly db: Database.Database;
 
   constructor(databasePath: string) {
+    mkdirSync(dirname(databasePath), { recursive: true });
     this.db = new Database(databasePath);
 
     this.db.pragma("journal_mode = WAL");
