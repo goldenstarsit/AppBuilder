@@ -6,9 +6,10 @@ import { attributesMigration } from "./004_attributes";
 import { tagStructureMigration } from "./005_tag_structure";
 import { derivedMigration } from "./006_derived";
 import { contentMigration } from "./007_content";
+import { contentParentTagMigration } from "./008_content_parent_tag";
 import { MigrationRunner } from "./migrationRunner";
 
-const migrations = [initialMigration, categoriesMigration, tagsMigration, attributesMigration, tagStructureMigration, derivedMigration, contentMigration];
+const migrations = [initialMigration, categoriesMigration, tagsMigration, attributesMigration, tagStructureMigration, derivedMigration, contentMigration, contentParentTagMigration];
 
 export function runMigrations(db: DatabaseAdapter): void {
   new MigrationRunner(db, migrations).run();
