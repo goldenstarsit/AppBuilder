@@ -16,6 +16,21 @@ type EntityCategory = {
 
 type EntityRecord = Record<string, unknown>;
 
+function PlusIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-4 w-4"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      strokeWidth="2"
+    >
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
 function CategoryIcon() {
   return (
     <svg
@@ -494,11 +509,22 @@ export default function Home() {
                   </h2>
                 </div>
               </div>
-              <p className="mt-4 text-sm leading-6 text-slate-500">
-                {selectedCategory
-                  ? `All defined entities in ${selectedCategory.name}.`
-                  : "Select a category to view its defined entities."}
-              </p>
+              <div className="mt-4 flex items-center justify-between gap-4">
+                <p className="text-sm leading-6 text-slate-500">
+                  {selectedCategory
+                    ? `All defined entities in ${selectedCategory.name}.`
+                    : "Select a category to view its defined entities."}
+                </p>
+                <button
+                  type="button"
+                  aria-label="Add defined entity"
+                  title="Add defined entity"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                  disabled={!selectedCategory}
+                >
+                  <PlusIcon />
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
