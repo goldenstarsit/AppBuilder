@@ -6,212 +6,13 @@ type Entity = {
   id: string;
   name: string;
   description: string;
-  status: "Active" | "Draft";
-  updated: string;
 };
 
 type EntityCategory = {
   id: string;
   name: string;
   description: string;
-  count: number;
-  entities: Entity[];
 };
-
-function ChevronDown() {
-  return (
-    <svg
-      aria-hidden="true"
-      className="h-5 w-5"
-      fill="none"
-      viewBox="0 0 24 24"
-      stroke="currentColor"
-      strokeWidth="1.8"
-    >
-      <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-      <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-    </svg>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg aria-hidden="true" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-      <circle cx="11" cy="11" r="6.5" />
-      <path strokeLinecap="round" d="m16 16 4 4" />
-    </svg>
-  );
-}
-
-function SearchableSelect({
-  label,
-  placeholder,
-  value,
-  options,
-  disabled = false,
-  onChange,
-  onAdd,
-}: {
-  label: string;
-  placeholder: string;
-  value: string;
-  options: { id: string; name: string; count?: number }[];
-  disabled?: boolean;
-  onChange: (value: string) => void;
-  onAdd: () => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
-
-  const filteredOptions = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) return options;
-
-    return options.filter((option) =>
-      option.name.toLowerCase().includes(query),
-    );
-  }, [options, search]);
-
-  const selectedOption = options.find((option) => option.id === value);
-
-  function selectOption(id: string) {
-    onChange(id);
-    setOpen(false);
-    setSearch("");
-  }
-
-  function toggleOpen() {
-    if (disabled) return;
-
-    setOpen((current) => {
-      if (!current) setSearch("");
-      return !current;
-    });
-  }
-
-  return (
-    <div className="relative">
-      <label className="mb-2 block text-sm font-medium text-slate-700">
-        {label}
-      </label>
-
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={toggleOpen}
-        className="flex h-12 w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 text-left text-sm font-medium text-slate-900 outline-none transition hover:border-slate-300 focus:border-slate-400 focus:ring-4 focus:ring-slate-100 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className={selectedOption ? "text-slate-900" : "text-slate-400"}>
-          {selectedOption
-            ? `${selectedOption.name}${
-                selectedOption.count !== undefined
-                  ? ` (${selectedOption.count})`
-                  : ""
-              }`
-            : placeholder}
-        </span>
-
-        <span
-          className={`text-slate-400 transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        >
-          <ChevronDown />
-        </span>
-      </button>
-
-      {open && (
-        <>
-          <button
-            type="button"
-            aria-label="Close dropdown"
-            className="fixed inset-0 z-30 cursor-default"
-            onClick={() => setOpen(false)}
-          />
-
-          <div className="absolute left-0 right-0 top-full z-40 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60">
-            <div className="flex items-center gap-2 border-b border-slate-100 p-2">
-              <div className="relative min-w-0 flex-1">
-                <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-slate-400">
-                  <SearchIcon />
-                </span>
-
-                <input
-                  autoFocus
-                  type="search"
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") setOpen(false);
-                  }}
-                  placeholder={`Search ${label.toLowerCase()}...`}
-                  className="h-10 w-full rounded-lg border border-slate-200 bg-slate-50 pl-9 pr-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-300 focus:bg-white focus:ring-2 focus:ring-slate-100"
-                />
-              </div>
-
-              <button
-                type="button"
-                onClick={onAdd}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-100"
-                aria-label={`Add ${label.toLowerCase()}`}
-                title={`Add ${label}`}
-              >
-                <PlusIcon />
-              </button>
-            </div>
-
-            <div className="max-h-64 overflow-y-auto p-1.5" role="listbox">
-              {filteredOptions.length > 0 ? (
-                filteredOptions.map((option) => (
-                  <button
-                    key={option.id}
-                    type="button"
-                    role="option"
-                    aria-selected={option.id === value}
-                    onClick={() => selectOption(option.id)}
-                    className={`flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm transition ${
-                      option.id === value
-                        ? "bg-slate-100 font-medium text-slate-900"
-                        : "text-slate-700 hover:bg-slate-50"
-                    }`}
-                  >
-                    <span className="min-w-0 truncate">{option.name}</span>
-
-                    {option.count !== undefined && (
-                      <span className="ml-3 shrink-0 text-xs text-slate-400">
-                        {option.count}
-                      </span>
-                    )}
-                  </button>
-                ))
-              ) : (
-                <div className="px-3 py-8 text-center">
-                  <p className="text-sm font-medium text-slate-700">
-                    No results found
-                  </p>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Try a different search term.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
 
 function CategoryIcon() {
   return (
@@ -303,8 +104,11 @@ export default function Home() {
   const [categories, setCategories] = useState<EntityCategory[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState("");
   const [selectedEntityId, setSelectedEntityId] = useState("");
+  const [entities, setEntities] = useState<Entity[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [entitiesLoading, setEntitiesLoading] = useState(false);
   const [categoriesError, setCategoriesError] = useState("");
+  const [entitiesError, setEntitiesError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -351,16 +155,61 @@ export default function Home() {
   );
 
   const selectedEntity = useMemo(
-    () =>
-      selectedCategory?.entities.find(
-        (entity) => entity.id === selectedEntityId,
-      ),
-    [selectedCategory, selectedEntityId],
+    () => entities.find((entity) => entity.id === selectedEntityId),
+    [entities, selectedEntityId],
   );
+
+  useEffect(() => {
+    if (!selectedCategoryId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadEntities() {
+      try {
+        setEntitiesLoading(true);
+        setEntitiesError("");
+        setEntities([]);
+        setSelectedEntityId("");
+
+        const response = await fetch(
+          `/api/categories/${selectedCategoryId}/entities`,
+          { cache: "no-store" },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load entities.");
+        }
+
+        const data = (await response.json()) as Entity[];
+
+        if (!cancelled) {
+          setEntities(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setEntitiesError("Unable to load entities.");
+        }
+      } finally {
+        if (!cancelled) {
+          setEntitiesLoading(false);
+        }
+      }
+    }
+
+    void loadEntities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCategoryId]);
 
   function handleCategoryChange(value: string) {
     setSelectedCategoryId(value);
     setSelectedEntityId("");
+    setEntities([]);
+    setEntitiesError("");
   }
 
   return (
@@ -409,27 +258,34 @@ export default function Home() {
             </div>
 
             <div className="p-5 sm:p-6">
-              <SearchableSelect
-                label="Category"
-                placeholder={
-                  categoriesLoading
-                    ? "Loading categories..."
-                    : categoriesError
-                      ? "Unable to load categories"
-                      : "Select a category..."
-                }
-                value={selectedCategoryId}
-                options={categories.map((category) => ({
-                  id: category.id,
-                  name: category.name,
-                  count: category.count,
-                }))}
-                disabled={categoriesLoading}
-                onChange={handleCategoryChange}
-                onAdd={() => {
-                  // Reserved for the category creation workflow.
-                }}
-              />
+              <div>
+                <label
+                  htmlFor="category"
+                  className="mb-2 block text-sm font-semibold text-slate-800"
+                >
+                  Category
+                </label>
+                <select
+                  id="category"
+                  value={selectedCategoryId}
+                  disabled={categoriesLoading}
+                  onChange={(event) => handleCategoryChange(event.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-50"
+                >
+                  <option value="">
+                    {categoriesLoading
+                      ? "Loading categories..."
+                      : categoriesError
+                        ? "Unable to load categories"
+                        : "Select a category..."}
+                  </option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
               {categoriesError && (
                 <div className="mt-4 rounded-xl bg-red-50 px-4 py-3">
@@ -487,30 +343,38 @@ export default function Home() {
             </div>
 
             <div className="p-5 sm:p-6">
-              <SearchableSelect
-                label="Entity"
-                placeholder={
-                  !selectedCategory
-                    ? "Select category first..."
-                    : selectedCategory.entities.length
-                      ? "Select an entity..."
-                      : "No entities available"
-                }
+              <select
+                id="entity"
                 value={selectedEntityId}
-                disabled={
-                  !selectedCategory || !selectedCategory.entities.length
-                }
-                options={
-                  selectedCategory?.entities.map((entity) => ({
-                    id: entity.id,
-                    name: entity.name,
-                  })) ?? []
-                }
-                onChange={setSelectedEntityId}
-                onAdd={() => {
-                  // Reserved for the entity creation workflow.
-                }}
-              />
+                disabled={!selectedCategoryId || entitiesLoading || !entities.length}
+                onChange={(event) => setSelectedEntityId(event.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-200 disabled:cursor-not-allowed disabled:bg-slate-50"
+              >
+                <option value="">
+                  {!selectedCategory
+                    ? "Select category first..."
+                    : entitiesLoading
+                      ? "Loading entities..."
+                      : entitiesError
+                        ? "Unable to load entities"
+                        : entities.length
+                          ? "Select an entity..."
+                          : "No entities available"}
+                </option>
+                {entities.map((entity) => (
+                  <option key={entity.id} value={entity.id}>
+                    {entity.name}
+                  </option>
+                ))}
+              </select>
+
+              {entitiesError && (
+                <div className="mt-4 rounded-xl bg-red-50 px-4 py-3">
+                  <p className="text-sm font-medium text-red-700">
+                    {entitiesError}
+                  </p>
+                </div>
+              )}
 
               {selectedEntity && (
                 <div className="mt-4 rounded-xl bg-slate-50 px-4 py-3">
@@ -565,10 +429,7 @@ export default function Home() {
                         Name
                       </th>
                       <th className="px-5 py-3.5 font-semibold text-slate-600">
-                        Status
-                      </th>
-                      <th className="px-5 py-3.5 font-semibold text-slate-600">
-                        Updated
+                        Description
                       </th>
                     </tr>
                   </thead>
@@ -585,19 +446,8 @@ export default function Home() {
                           {selectedEntity.description}
                         </p>
                       </td>
-                      <td className="px-5 py-4">
-                        <span
-                          className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${
-                            selectedEntity.status === "Active"
-                              ? "bg-emerald-50 text-emerald-700"
-                              : "bg-amber-50 text-amber-700"
-                          }`}
-                        >
-                          {selectedEntity.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4 whitespace-nowrap text-slate-500">
-                        {selectedEntity.updated}
+                      <td className="px-5 py-4 text-slate-500">
+                        {selectedEntity.description}
                       </td>
                     </tr>
                   </tbody>

@@ -1,0 +1,182 @@
+import type { DatabaseAdapter } from "../databaseAdapter";
+
+const attributes = [
+  ["accept", "Specifies accepted file types for form file inputs."],
+  ["accept-charset", "Specifies the character encoding used by a form submission."],
+  ["accesskey", "Specifies a keyboard shortcut for an element."],
+  ["action", "Specifies the URL that processes a form submission."],
+  ["allow", "Specifies permissions available to an embedded iframe."],
+  ["alt", "Provides alternative text for an image or similar resource."],
+  ["anchor", "Associates an element with a positioned anchor element."],
+  ["as", "Specifies the intended destination type of a linked resource."],
+  ["async", "Specifies that a script should execute asynchronously."],
+  ["autocapitalize", "Controls automatic capitalization of user-entered text."],
+  ["autocomplete", "Specifies whether and how a form control may use autocomplete."],
+  ["autocorrect", "Controls automatic spelling correction for editable text."],
+  ["autofocus", "Requests focus when an element becomes available."],
+  ["autoplay", "Requests automatic playback of media."],
+  ["charset", "Specifies the character encoding for a document or resource."],
+  ["checked", "Specifies that a checkbox or radio control is selected."],
+  ["cite", "Specifies a URL identifying the source of quoted or changed content."],
+  ["class", "Specifies one or more CSS classes for an element."],
+  ["color", "Specifies a color for elements that support this attribute."],
+  ["colorspace", "Specifies the color space used by a color input."],
+  ["cols", "Specifies the visible width of a textarea in character columns."],
+  ["colspan", "Specifies how many table columns a cell spans."],
+  ["content", "Provides a value for metadata defined by a meta element."],
+  ["contenteditable", "Specifies whether an element's content can be edited."],
+  ["controls", "Requests that media playback controls be displayed."],
+  ["coords", "Specifies coordinates for an area in an image map."],
+  ["crossorigin", "Specifies how a resource handles cross-origin requests."],
+  ["csp", "Specifies a content security policy for an iframe."],
+  ["data", "Specifies the URL of an object resource."],
+  ["data-*", "Defines custom data attributes for application-specific information."],
+  ["datetime", "Specifies a date or time associated with an element."],
+  ["decoding", "Specifies the preferred image decoding strategy."],
+  ["default", "Specifies that a track should be enabled by default."],
+  ["defer", "Specifies that a script should execute after document parsing."],
+  ["dir", "Specifies the text direction of an element."],
+  ["dirname", "Specifies a form field used to submit text direction."],
+  ["disabled", "Specifies that a form control is disabled."],
+  ["download", "Requests that a linked resource be downloaded."],
+  ["draggable", "Specifies whether an element may be dragged."],
+  ["enctype", "Specifies the encoding type used when submitting a form."],
+  ["enterkeyhint", "Specifies the action label shown for the Enter key."],
+  ["for", "Associates a label with a form control or other target."],
+  ["form", "Associates a form control with a form element."],
+  ["formaction", "Specifies the URL used for a form submission button."],
+  ["formenctype", "Specifies the encoding used for a form submission button."],
+  ["formmethod", "Specifies the HTTP method used by a form submission button."],
+  ["formnovalidate", "Requests that form validation be skipped for a submission."],
+  ["formtarget", "Specifies where a form submission response should be displayed."],
+  ["headers", "Associates a table cell with one or more header cells."],
+  ["height", "Specifies the height of an applicable element or resource."],
+  ["hidden", "Specifies that an element is not currently relevant or displayed."],
+  ["high", "Specifies the upper bound of the low range for a meter."],
+  ["href", "Specifies the URL of a linked resource."],
+  ["hreflang", "Specifies the language of a linked resource."],
+  ["http-equiv", "Provides a pragma directive for a meta element."],
+  ["id", "Specifies a unique identifier for an element."],
+  ["inert", "Prevents user interaction and focus within an element subtree."],
+  ["inputmode", "Provides a hint about the virtual keyboard to display."],
+  ["integrity", "Provides a cryptographic integrity value for a resource."],
+  ["is", "Specifies behavior for a customized built-in element."],
+  ["ismap", "Specifies that an image participates in a server-side image map."],
+  ["itemid", "Specifies the global identifier of a microdata item."],
+  ["itemprop", "Specifies properties belonging to a microdata item."],
+  ["itemref", "References additional elements containing microdata properties."],
+  ["itemscope", "Defines the scope of a microdata item."],
+  ["itemtype", "Specifies the vocabulary URL used by a microdata item."],
+  ["kind", "Specifies the type of text track."],
+  ["label", "Specifies a human-readable label for an applicable element."],
+  ["lang", "Specifies the language of an element's content."],
+  ["language", "Specifies a legacy scripting language identifier."],
+  ["loading", "Specifies the loading behavior for applicable resources."],
+  ["list", "Associates an input with a datalist of suggested values."],
+  ["loop", "Requests that media repeat after reaching the end."],
+  ["low", "Specifies the lower bound of the low range for a meter."],
+  ["max", "Specifies the maximum permitted or represented value."],
+  ["maxlength", "Specifies the maximum number of characters permitted."],
+  ["media", "Specifies applicable media conditions for a resource."],
+  ["method", "Specifies the HTTP method used to submit a form."],
+  ["min", "Specifies the minimum permitted or represented value."],
+  ["minlength", "Specifies the minimum number of characters required."],
+  ["multiple", "Specifies that multiple values may be selected or supplied."],
+  ["muted", "Specifies that media should initially be muted."],
+  ["name", "Specifies the name used to identify an element or submitted value."],
+  ["nonce", "Provides a cryptographic nonce for Content Security Policy."],
+  ["novalidate", "Requests that form validation be skipped."],
+  ["open", "Specifies that a details or dialog element is open."],
+  ["part", "Exposes a shadow-tree part for styling with ::part."],
+  ["pattern", "Specifies a pattern that input values must match."],
+  ["ping", "Specifies URLs to notify when a hyperlink is followed."],
+  ["placeholder", "Provides a short hint describing an expected input value."],
+  ["playsinline", "Requests that video play inline rather than fullscreen."],
+  ["popover", "Specifies that an element is a popover."],
+  ["popovertarget", "Identifies the popover controlled by an element."],
+  ["popovertargetaction", "Specifies the action performed on a controlled popover."],
+  ["poster", "Specifies an image displayed before video playback starts."],
+  ["preload", "Specifies the preferred media preload behavior."],
+  ["readonly", "Specifies that a form control cannot be edited."],
+  ["referrerpolicy", "Specifies the referrer policy used for a resource request."],
+  ["rel", "Specifies the relationship between the current document and a resource."],
+  ["required", "Specifies that a form control must have a value."],
+  ["reversed", "Specifies that an ordered list should use descending numbering."],
+  ["role", "Specifies an ARIA role for accessibility semantics."],
+  ["rows", "Specifies the visible height of a textarea in rows."],
+  ["rowspan", "Specifies how many table rows a cell spans."],
+  ["sandbox", "Applies restrictions to content loaded in an iframe."],
+  ["scope", "Specifies the cells to which a table header applies."],
+  ["selected", "Specifies that an option is selected by default."],
+  ["shape", "Specifies the shape of an image-map or area region."],
+  ["size", "Specifies the display size of an input or select control."],
+  ["sizes", "Specifies resource sizes for responsive loading."],
+  ["slot", "Assigns an element to a slot in a shadow tree."],
+  ["span", "Specifies the number of columns covered by a col or colgroup."],
+  ["spellcheck", "Specifies whether spelling and grammar checking is allowed."],
+  ["src", "Specifies the URL of an external resource."],
+  ["srcdoc", "Specifies inline HTML content for an iframe."],
+  ["srclang", "Specifies the language of a text track."],
+  ["srcset", "Specifies responsive image source candidates."],
+  ["start", "Specifies the starting number of an ordered list."],
+  ["step", "Specifies the permitted stepping interval for numeric input."],
+  ["style", "Specifies inline CSS styles for an element."],
+  ["tabindex", "Specifies an element's keyboard focus order."],
+  ["target", "Specifies where linked or submitted content should be displayed."],
+  ["title", "Provides advisory text or a tooltip for an element."],
+  ["translate", "Specifies whether an element's text and attributes should be translated."],
+  ["type", "Specifies the type of an element or resource."],
+  ["usemap", "Associates an image or object with a client-side image map."],
+  ["value", "Specifies the value associated with an applicable element."],
+  ["width", "Specifies the width of an applicable element or resource."],
+  ["wrap", "Specifies how textarea text should wrap when submitted."],
+  ["aria-*", "Defines ARIA accessibility states and properties."],
+];
+
+export const attributesMigration = {
+  version: 4,
+  name: "attributes",
+  up(db: DatabaseAdapter): void {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS attributes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        category_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT NOT NULL,
+        FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE RESTRICT,
+        UNIQUE (category_id, name)
+      );
+    `);
+
+    const category = db.get<{ id: number }>(
+      "SELECT id FROM category WHERE name = 'attributes'",
+    );
+
+    if (!category) {
+      db.run(
+        "INSERT INTO category (name, description) VALUES (?, ?)",
+        "attributes",
+        "HTML attributes used to configure and describe application elements.",
+      );
+    }
+
+    const attributesCategory = db.get<{ id: number }>(
+      "SELECT id FROM category WHERE name = 'attributes'",
+    );
+
+    if (!attributesCategory) {
+      throw new Error("Attributes category could not be created.");
+    }
+
+    for (const [name, description] of attributes) {
+      db.run(
+        `INSERT OR IGNORE INTO attributes
+          (category_id, name, description)
+         VALUES (?, ?, ?)`,
+        attributesCategory.id,
+        name,
+        description,
+      );
+    }
+  },
+};
