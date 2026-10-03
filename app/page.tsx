@@ -14,6 +14,8 @@ type EntityCategory = {
   description: string;
 };
 
+type EntityRecord = Record<string, unknown>;
+
 function CategoryIcon() {
   return (
     <svg
@@ -109,6 +111,9 @@ export default function Home() {
   const [entitiesLoading, setEntitiesLoading] = useState(false);
   const [categoriesError, setCategoriesError] = useState("");
   const [entitiesError, setEntitiesError] = useState("");
+  const [records, setRecords] = useState<EntityRecord[]>([]);
+  const [recordsLoading, setRecordsLoading] = useState(false);
+  const [recordsError, setRecordsError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -205,12 +210,85 @@ export default function Home() {
     };
   }, [selectedCategoryId]);
 
+  useEffect(() => {
+    if (!selectedCategoryId || !selectedEntityId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadRecords() {
+      try {
+        setRecordsLoading(true);
+        setRecordsError("");
+        setRecords([]);
+
+        const response = await fetch(
+          `/api/categories/${selectedCategoryId}/entities/${selectedEntityId}/records`,
+          { cache: "no-store" },
+        );
+
+        if (!response.ok) {
+          throw new Error("Failed to load records.");
+        }
+
+        const data = (await response.json()) as EntityRecord[];
+
+        if (!cancelled) {
+          setRecords(data);
+        }
+      } catch {
+        if (!cancelled) {
+          setRecordsError("Unable to load records.");
+        }
+      } finally {
+        if (!cancelled) {
+          setRecordsLoading(false);
+        }
+      }
+    }
+
+    void loadRecords();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedCategoryId, selectedEntityId]);
+
   function handleCategoryChange(value: string) {
     setSelectedCategoryId(value);
     setSelectedEntityId("");
     setEntities([]);
     setEntitiesError("");
+    setRecords([]);
+    setRecordsError("");
   }
+
+  const recordColumns = useMemo(() => {
+    if (selectedCategory?.name === "tags") {
+      return [
+        { key: "id", label: "ID" },
+        { key: "parent_tag_id", label: "Parent Tag" },
+        { key: "tag_definition_id", label: "Tag Definition" },
+      ];
+    }
+
+    if (selectedCategory?.name === "attributes") {
+      return [
+        { key: "id", label: "ID" },
+        { key: "tag_id", label: "Tag ID" },
+        { key: "name", label: "Name" },
+        { key: "value", label: "Value" },
+      ];
+    }
+
+    return records.length > 0
+      ? Object.keys(records[0]).map((key) => ({
+          key,
+          label: key.replace(/_/g, " "),
+        }))
+      : [];
+  }, [records, selectedCategory]);
 
   return (
     <main className="min-h-full bg-slate-50">
@@ -422,36 +500,49 @@ export default function Home() {
                 <table className="w-full min-w-[520px] text-left text-sm">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="px-5 py-3.5 font-semibold text-slate-600">
-                        ID
-                      </th>
-                      <th className="px-5 py-3.5 font-semibold text-slate-600">
-                        Name
-                      </th>
-                      <th className="px-5 py-3.5 font-semibold text-slate-600">
-                        Description
-                      </th>
+                      {recordColumns.map((column) => (
+                        <th
+                          key={column.key}
+                          className="px-5 py-3.5 font-semibold capitalize text-slate-600"
+                        >
+                          {column.label}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    <tr className="transition-colors hover:bg-slate-50">
-                      <td className="px-5 py-4 font-mono text-xs text-slate-500">
-                        {selectedEntity.id}
-                      </td>
-                      <td className="px-5 py-4">
-                        <p className="font-medium text-slate-900">
-                          {selectedEntity.name}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-500">
-                          {selectedEntity.description}
-                        </p>
-                      </td>
-                      <td className="px-5 py-4 text-slate-500">
-                        {selectedEntity.description}
-                      </td>
-                    </tr>
-                  </tbody>
+
+                  {!recordsLoading && records.length > 0 && (
+                    <tbody className="divide-y divide-slate-100">
+                      {records.map((record, index) => (
+                        <tr
+                          key={String(record.id ?? index)}
+                          className="transition-colors hover:bg-slate-50"
+                        >
+                          {recordColumns.map((column) => (
+                            <td
+                              key={column.key}
+                              className="px-5 py-4 text-slate-600"
+                            >
+                              {String(record[column.key] ?? "")}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  )}
                 </table>
+
+                {recordsLoading && (
+                  <div className="px-5 py-4 text-sm text-slate-500">
+                    Loading records...
+                  </div>
+                )}
+
+                {recordsError && (
+                  <div className="px-5 py-4 text-sm text-red-600">
+                    {recordsError}
+                  </div>
+                )}
               </div>
             ) : (
               <EmptyState
