@@ -4,9 +4,10 @@ import { categoriesMigration } from "./002_categories";
 import { tagsMigration } from "./003_tags";
 import { attributesMigration } from "./004_attributes";
 import { tagStructureMigration } from "./005_tag_structure";
+import { derivedMigration } from "./006_derived";
 import { MigrationRunner } from "./migrationRunner";
 
-const migrations = [initialMigration, categoriesMigration, tagsMigration, attributesMigration, tagStructureMigration];
+const migrations = [initialMigration, categoriesMigration, tagsMigration, attributesMigration, tagStructureMigration, derivedMigration];
 
 export function runMigrations(db: DatabaseAdapter): void {
   new MigrationRunner(db, migrations).run();
