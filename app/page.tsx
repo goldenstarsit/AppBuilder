@@ -467,6 +467,85 @@ export default function Home() {
             </div>
           </article>
 
+          <article
+            className={`overflow-hidden rounded-2xl border bg-white shadow-sm transition-all ${
+              selectedCategory
+                ? "border-slate-200 hover:shadow-md"
+                : "border-slate-200/80"
+            }`}
+          >
+            <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
+              <div className="flex items-center gap-3">
+                <div
+                  className={`flex h-10 w-10 items-center justify-center rounded-xl ${
+                    selectedCategory
+                      ? "bg-slate-100 text-slate-700"
+                      : "bg-slate-50 text-slate-300"
+                  }`}
+                >
+                  <EntityIcon />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
+                    Step 03
+                  </p>
+                  <h2 className="text-base font-semibold text-slate-900">
+                    Defined Entities
+                  </h2>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-6 text-slate-500">
+                {selectedCategory
+                  ? `All defined entities in ${selectedCategory.name}.`
+                  : "Select a category to view its defined entities."}
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[620px] text-left text-sm">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-5 py-3.5 font-semibold text-slate-600">
+                      ID
+                    </th>
+                    <th className="px-5 py-3.5 font-semibold text-slate-600">
+                      Name
+                    </th>
+                    <th className="px-5 py-3.5 font-semibold text-slate-600">
+                      Description
+                    </th>
+                    <th className="px-5 py-3.5 font-semibold text-slate-600">
+                      Category
+                    </th>
+                  </tr>
+                </thead>
+                {selectedCategory && entities.length > 0 && (
+                  <tbody className="divide-y divide-slate-100">
+                    {entities.map((entity) => (
+                      <tr
+                        key={entity.id}
+                        className="transition-colors hover:bg-slate-50"
+                      >
+                        <td className="px-5 py-4 font-mono text-xs text-slate-500">
+                          {entity.id}
+                        </td>
+                        <td className="px-5 py-4 font-medium text-slate-900">
+                          {entity.name}
+                        </td>
+                        <td className="px-5 py-4 text-slate-500">
+                          {entity.description}
+                        </td>
+                        <td className="px-5 py-4 text-slate-500">
+                          {selectedCategory.name}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                )}
+              </table>
+            </div>
+          </article>
+
           <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm lg:min-w-0">
             <div className="border-b border-slate-100 px-5 py-5 sm:px-6">
               <div className="flex items-center gap-3">
@@ -481,7 +560,7 @@ export default function Home() {
                 </div>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Step 03
+                    Step 04
                   </p>
                   <h2 className="text-base font-semibold text-slate-900">
                     Entity Data
