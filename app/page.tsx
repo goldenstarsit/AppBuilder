@@ -129,6 +129,11 @@ export default function Home() {
   const [records, setRecords] = useState<EntityRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
   const [recordsError, setRecordsError] = useState("");
+  const [showAddEntity, setShowAddEntity] = useState(false);
+  const [newEntityName, setNewEntityName] = useState("");
+  const [newEntityDescription, setNewEntityDescription] = useState("");
+  const [addEntityLoading, setAddEntityLoading] = useState(false);
+  const [addEntityError, setAddEntityError] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -269,6 +274,69 @@ export default function Home() {
       cancelled = true;
     };
   }, [selectedCategoryId, selectedEntityId]);
+
+  async function handleAddEntity() {
+    if (!selectedCategoryId) {
+      return;
+    }
+
+    const name = newEntityName.trim();
+    const description = newEntityDescription.trim();
+
+    if (!name || !description) {
+      setAddEntityError("Name and description are required.");
+      return;
+    }
+
+    try {
+      setAddEntityLoading(true);
+      setAddEntityError("");
+
+      const response = await fetch(
+        `/api/categories/${selectedCategoryId}/entities`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name,
+            description,
+          }),
+        },
+      );
+
+      const data = (await response.json()) as {
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(data.error || "Unable to create entity.");
+      }
+
+      setNewEntityName("");
+      setNewEntityDescription("");
+      setShowAddEntity(false);
+
+      const entitiesResponse = await fetch(
+        `/api/categories/${selectedCategoryId}/entities`,
+        { cache: "no-store" },
+      );
+
+      if (!entitiesResponse.ok) {
+        throw new Error("Entity created, but the list could not be refreshed.");
+      }
+
+      const entitiesData = (await entitiesResponse.json()) as Entity[];
+      setEntities(entitiesData);
+    } catch (error) {
+      setAddEntityError(
+        error instanceof Error ? error.message : "Unable to create entity.",
+      );
+    } finally {
+      setAddEntityLoading(false);
+    }
+  }
 
   function handleCategoryChange(value: string) {
     setSelectedCategoryId(value);
@@ -521,11 +589,85 @@ export default function Home() {
                   title="Add defined entity"
                   className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
                   disabled={!selectedCategory}
+                  onClick={() => {
+                    setAddEntityError("");
+                    setShowAddEntity(true);
+                  }}
                 >
                   <PlusIcon />
                 </button>
               </div>
             </div>
+
+            {showAddEntity && selectedCategory && (
+              <div className="border-b border-slate-100 bg-slate-50/70 p-5 sm:p-6">
+                <div className="grid gap-4">
+                  <div>
+                    <label
+                      htmlFor="new-entity-name"
+                      className="mb-2 block text-sm font-medium text-slate-700"
+                    >
+                      Name
+                    </label>
+                    <input
+                      id="new-entity-name"
+                      type="text"
+                      value={newEntityName}
+                      onChange={(event) => setNewEntityName(event.target.value)}
+                      placeholder="Enter entity name"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    />
+                  </div>
+
+                  <div>
+                    <label
+                      htmlFor="new-entity-description"
+                      className="mb-2 block text-sm font-medium text-slate-700"
+                    >
+                      Description
+                    </label>
+                    <textarea
+                      id="new-entity-description"
+                      value={newEntityDescription}
+                      onChange={(event) =>
+                        setNewEntityDescription(event.target.value)
+                      }
+                      placeholder="Enter entity description"
+                      rows={3}
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-slate-400 focus:ring-2 focus:ring-slate-100"
+                    />
+                  </div>
+
+                  {addEntityError && (
+                    <p className="text-sm font-medium text-red-600">
+                      {addEntityError}
+                    </p>
+                  )}
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddEntity(false);
+                        setAddEntityError("");
+                      }}
+                      className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50"
+                      disabled={addEntityLoading}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleAddEntity()}
+                      disabled={addEntityLoading}
+                      className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {addEntityLoading ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="overflow-x-auto">
               <table className="w-full min-w-[620px] text-left text-sm">
