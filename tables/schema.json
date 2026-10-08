@@ -1,0 +1,11 @@
+{
+  "environmentDetails": {
+    "columns": [
+      "id",
+      "environment",
+      "type",
+      "description",
+      "decoder"
+    ]
+  }
+}

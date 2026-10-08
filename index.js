@@ -1,9 +1,9 @@
-import { getEnvironmentDetails } from "./tables/index.js";
+import { getAll } from "./core/tableStorage.js";
 
 export function getDashboard() {
   return {
     name: "AppBuilder Dashboard",
-    environmentDetails: getEnvironmentDetails()
+    environmentDetails: getAll("environmentDetails")
   };
 }
 
