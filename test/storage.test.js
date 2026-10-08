@@ -8,7 +8,7 @@ import {
   getDataTableFiles,
   getDataTableSizeLimit,
   readDataTable
-} from "./storage.js";
+} from "../tables/storage.js";
 
 test("table starts with central and first indexed file", () => {
   fs.rmSync("data/tables", { recursive: true, force: true });

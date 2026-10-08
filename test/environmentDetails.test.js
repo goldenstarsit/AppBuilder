@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { getEnvironmentDetails } from "./environmentDetails.js";
+import { getEnvironmentDetails } from "../tables/environmentDetails.js";
 
 test("environment details table contains all frontend environments", () => {
   fs.rmSync("data/tables", { recursive: true, force: true });

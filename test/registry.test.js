@@ -6,7 +6,7 @@ import {
   getTable,
   getTables,
   removeTable
-} from "./index.js";
+} from "../tables/index.js";
 
 test("register and retrieve a table", () => {
   const table = createTable("components", ["id", "type"]);

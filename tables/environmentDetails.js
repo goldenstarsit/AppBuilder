@@ -1,11 +1,20 @@
 import {
-  appendData,
-  createDataTable,
-  exportTable,
-  readDataTable
-} from "./storage.js";
+  appendTableRow,
+  createTableData,
+  exportDataTable,
+  readTable
+} from "./dataTable.js";
 
-const TABLE_NAME = "environment_details";
+export const environmentDetailsTable = {
+  name: "environment_details",
+  columns: [
+    "id",
+    "environment",
+    "type",
+    "description",
+    "decoder"
+  ]
+};
 
 const ENVIRONMENT_DETAILS = [
   {
@@ -46,17 +55,17 @@ const ENVIRONMENT_DETAILS = [
 ];
 
 export function getEnvironmentDetails() {
-  createDataTable(TABLE_NAME);
+  createTableData(environmentDetailsTable);
 
-  let rows = readDataTable(TABLE_NAME);
+  let rows = readTable(environmentDetailsTable);
 
   if (rows.length === 0) {
     for (const row of ENVIRONMENT_DETAILS) {
-      appendData(TABLE_NAME, row);
+      appendTableRow(environmentDetailsTable, row);
     }
 
-    exportTable(TABLE_NAME);
-    rows = readDataTable(TABLE_NAME);
+    exportDataTable(environmentDetailsTable);
+    rows = readTable(environmentDetailsTable);
   }
 
   return rows;

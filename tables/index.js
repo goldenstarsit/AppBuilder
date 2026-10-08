@@ -22,5 +22,13 @@ export {
 } from "./storage.js";
 
 export {
-  getEnvironmentDetails
+  createTableData,
+  appendTableRow,
+  readTable,
+  exportDataTable
+} from "./dataTable.js";
+
+export {
+  getEnvironmentDetails,
+  environmentDetailsTable
 } from "./environmentDetails.js";
