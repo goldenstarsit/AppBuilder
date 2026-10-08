@@ -65,7 +65,7 @@ function getRows(tableName) {
   return readJson(tableFile(tableName), []);
 }
 
-function getTableNames() {
+export function getTableNames() {
   const schema = getSchema();
   return Object.keys(schema);
 }
