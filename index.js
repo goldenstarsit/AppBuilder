@@ -185,6 +185,11 @@ export function renderDashboard() {
       transition: transform .18s ease, background .18s ease, border-color .18s ease;
     }
 
+    #configurationButton {
+      grid-column: 1;
+      justify-self: start;
+    }
+
     .theme-button:hover {
       background: var(--accent-soft);
       border-color: var(--accent);
@@ -269,7 +274,13 @@ export function renderDashboard() {
 
 <body>
   <header class="topbar">
-    <span aria-hidden="true"></span>
+    <button
+      id="configurationButton"
+      class="theme-button configuration-button"
+      type="button"
+      aria-label="App configuration"
+      title="App configuration"
+    ><span aria-hidden="true">⚙</span></button>
     <h2 class="topbar-title">AppBuilder</h2>
     <button
       class="theme-button"
