@@ -85,6 +85,7 @@ function renderEnvironmentRows(rows) {
 }
 
 export function renderDashboard() {
+  const categories = getAll("categories");
   const dashboard = getDashboard();
   const environments = dashboard.environmentDetails;
 
@@ -302,6 +303,16 @@ export function renderDashboard() {
         <option value="">Choose an environment</option>
         ${environments.map((item) => `
         <option value="${escapeHtml(item.environment)}">${escapeHtml(item.environment)}</option>
+        `).join("")}
+      </select>
+    </section>
+
+    <section class="dashboard-card" aria-label="Category selection">
+      <label class="field-label" for="category-select">Select Category</label>
+      <select class="environment-select" id="category-select" name="category">
+        <option value="">Choose a category</option>
+        ${categories.map((item) => `
+        <option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>
         `).join("")}
       </select>
     </section>

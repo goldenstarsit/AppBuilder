@@ -11,14 +11,29 @@ import {
 test("table service lists registered tables", () => {
   const tables = listTables();
 
-  assert.equal(tables.length, 1);
-  assert.equal(tables[0].name, "environmentDetails");
-  assert.deepEqual(tables[0].schema.columns, [
+  assert.equal(tables.length, 2);
+
+  const environmentTable = tables.find(
+    (table) => table.name === "environmentDetails"
+  );
+  const categoriesTable = tables.find(
+    (table) => table.name === "categories"
+  );
+
+  assert.ok(environmentTable);
+  assert.deepEqual(environmentTable.schema.columns, [
     "id",
     "environment",
     "type",
     "description",
     "decoder"
+  ]);
+
+  assert.ok(categoriesTable);
+  assert.deepEqual(categoriesTable.schema.columns, [
+    "id",
+    "name",
+    "description"
   ]);
 });
 

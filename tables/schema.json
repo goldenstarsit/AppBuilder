@@ -7,5 +7,12 @@
       "description",
       "decoder"
     ]
+  },
+  "categories": {
+    "columns": [
+      "id",
+      "name",
+      "description"
+    ]
   }
 }
