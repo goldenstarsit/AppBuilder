@@ -204,13 +204,15 @@ export function renderDashboard() {
     }
 
     .main {
+      display: grid;
+      gap: 10px;
       width: min(100% - 32px, 760px);
       margin: 0 auto;
-      padding: clamp(52px, 10vw, 104px) 0 80px;
+      padding: clamp(26px, 5vw, 52px) 0 80px;
     }
 
     .app-title {
-      margin: 0 0 42px;
+      margin: 0 0 21px;
       text-align: center;
     }
 
@@ -257,7 +259,7 @@ export function renderDashboard() {
     .environment-select:hover { border-color: var(--accent); }
 
     .table-ui {
-      margin-top: 24px;
+      margin-top: 0;
       overflow: hidden;
     }
 
@@ -420,8 +422,8 @@ export function renderDashboard() {
     @media (max-width: 480px) {
       .topbar { min-height: 68px; }
       .theme-button { width: 40px; height: 40px; border-radius: 12px; }
-      .main { padding-top: 64px; }
-      .app-title { margin-bottom: 32px; }
+      .main { padding-top: 32px; }
+      .app-title { margin-bottom: 16px; }
       .dashboard-card { border-radius: 20px; }
     }
 
