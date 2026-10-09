@@ -433,6 +433,127 @@ export function renderDashboard() {
         animation-duration: .01ms !important;
       }
     }
+
+    .custom-select {
+      position: relative;
+      width: 100%;
+      min-width: 0;
+    }
+    .custom-select-native {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border: 0 !important;
+    }
+    .custom-select-trigger:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+    }
+    .custom-select-trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      min-height: 44px;
+      padding: 10px 13px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: border-color .18s ease, box-shadow .18s ease,
+        background .18s ease;
+    }
+    .custom-select-trigger:hover,
+    .custom-select-trigger[aria-expanded="true"] {
+      border-color: var(--accent);
+    }
+    .custom-select-trigger:focus-visible {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+    .custom-select-chevron {
+      flex: 0 0 auto;
+      color: var(--muted);
+      transition: transform .18s ease;
+    }
+    .custom-select-trigger[aria-expanded="true"] .custom-select-chevron {
+      transform: rotate(180deg);
+    }
+    .custom-select-popup {
+      position: absolute;
+      z-index: 1200;
+      top: calc(100% + 7px);
+      left: 0;
+      right: 0;
+      display: grid;
+      gap: 3px;
+      max-height: 230px;
+      overflow-y: auto;
+      padding: 6px;
+      border: 1px solid var(--border);
+      border-radius: 13px;
+      background: var(--surface);
+      box-shadow: var(--shadow), 0 5px 18px rgba(0, 0, 0, .08);
+      transform-origin: top center;
+      animation: custom-select-enter .16s ease-out;
+    }
+    .custom-select-popup[hidden] {
+      display: none;
+    }
+    .custom-select-option {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      width: 100%;
+      min-height: 39px;
+      padding: 9px 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--text);
+      font: inherit;
+      text-align: left;
+      cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+    }
+    .custom-select-option:hover,
+    .custom-select-option:focus-visible {
+      outline: none;
+      background: var(--accent-soft);
+    }
+    .custom-select-option[aria-selected="true"] {
+      background: var(--accent-soft);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .custom-select-check {
+      flex: 0 0 auto;
+      color: var(--accent);
+      font-weight: 700;
+    }
+    @keyframes custom-select-enter {
+      from { opacity: 0; transform: translateY(-4px) scale(.99); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .custom-select-trigger,
+      .custom-select-chevron,
+      .custom-select-option {
+        transition: none;
+      }
+      .custom-select-popup { animation: none; }
+    }
   </style>
 </head>
 
@@ -584,6 +705,185 @@ export function renderDashboard() {
           ["html-css-js", "HTML / CSS / JavaScript"]]
       };
 
+      const customSelects = new Map();
+      let openCustomSelect = null;
+
+      function closeCustomSelect(returnFocus = false) {
+        if (!openCustomSelect) return;
+        const control = openCustomSelect;
+        control.popup.hidden = true;
+        control.trigger.setAttribute("aria-expanded", "false");
+        openCustomSelect = null;
+        if (returnFocus) control.trigger.focus();
+      }
+
+      function syncCustomSelect(select) {
+        const control = customSelects.get(select);
+        if (!control) return;
+
+        control.trigger.querySelector(".custom-select-value").textContent =
+          select.selectedOptions[0]?.textContent || "Select an option";
+        control.popup.replaceChildren();
+
+        [...select.options].forEach((option, index) => {
+          const item = document.createElement("button");
+          item.type = "button";
+          item.className = "custom-select-option";
+          item.setAttribute("role", "option");
+          item.setAttribute("aria-selected", String(option.selected));
+          item.dataset.index = String(index);
+          item.textContent = option.textContent;
+
+          if (option.selected) {
+            const check = document.createElement("span");
+            check.className = "custom-select-check";
+            check.setAttribute("aria-hidden", "true");
+            check.textContent = "✓";
+            item.append(check);
+          }
+
+          item.addEventListener("click", () => {
+            select.selectedIndex = index;
+            select.dispatchEvent(new Event("change", { bubbles: true }));
+            syncCustomSelect(select);
+            closeCustomSelect();
+            control.trigger.focus();
+          });
+
+          item.addEventListener("keydown", event => {
+            const items = [...control.popup.querySelectorAll(
+              ".custom-select-option"
+            )];
+            const current = items.indexOf(item);
+            let next = current;
+
+            if (event.key === "ArrowDown") next = Math.min(current + 1, items.length - 1);
+            else if (event.key === "ArrowUp") next = Math.max(current - 1, 0);
+            else if (event.key === "Home") next = 0;
+            else if (event.key === "End") next = items.length - 1;
+            else if (event.key === "Escape") {
+              event.preventDefault();
+              closeCustomSelect(true);
+              return;
+            } else return;
+
+            event.preventDefault();
+            items[next]?.focus();
+          });
+
+          control.popup.append(item);
+        });
+      }
+
+      function syncCustomSelects() {
+        for (const select of customSelects.keys()) syncCustomSelect(select);
+      }
+
+      function installCustomSelects() {
+        for (const select of [
+          fields.appType, fields.framework, fields.colorScheme,
+        document.getElementById("environment-select"),
+        document.getElementById("category-select"),
+        document.getElementById("item-select")
+        ].filter(Boolean)) {
+          const wrapper = document.createElement("div");
+          wrapper.className = "custom-select";
+
+          const trigger = document.createElement("button");
+          trigger.type = "button";
+          trigger.className = "custom-select-trigger";
+          trigger.setAttribute("aria-haspopup", "listbox");
+          trigger.setAttribute("aria-expanded", "false");
+
+          const value = document.createElement("span");
+          value.className = "custom-select-value";
+
+          const chevron = document.createElement("span");
+          chevron.className = "custom-select-chevron";
+          chevron.setAttribute("aria-hidden", "true");
+          chevron.textContent = "⌄";
+          trigger.append(value, chevron);
+
+          const popup = document.createElement("div");
+          popup.className = "custom-select-popup";
+          popup.hidden = true;
+          popup.setAttribute("role", "listbox");
+
+          const control = { select, wrapper, trigger, popup };
+          customSelects.set(select, control);
+
+          select.parentNode.insertBefore(wrapper, select);
+          wrapper.append(select, trigger, popup);
+          select.classList.add("custom-select-native");
+          select.tabIndex = -1;
+          select.setAttribute("aria-hidden", "true");
+
+          trigger.addEventListener("click", () => {
+            if (openCustomSelect === control) {
+              closeCustomSelect();
+              return;
+            }
+
+            closeCustomSelect();
+            syncCustomSelect(select);
+            popup.hidden = false;
+            trigger.setAttribute("aria-expanded", "true");
+            openCustomSelect = control;
+
+            const selected = popup.querySelector('[aria-selected="true"]');
+            (selected || popup.querySelector(".custom-select-option"))?.focus();
+          });
+
+          trigger.addEventListener("keydown", event => {
+            if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
+              event.preventDefault();
+              if (openCustomSelect !== control) trigger.click();
+            }
+          });
+
+          const label = document.querySelector('label[for="' + select.id + '"]');
+          if (label) {
+            label.addEventListener("click", event => {
+              event.preventDefault();
+              trigger.focus();
+              trigger.click();
+            });
+          }
+
+          syncCustomSelect(select);
+          const refreshDisabledState = () => {
+            trigger.disabled = select.disabled;
+            trigger.setAttribute("aria-disabled", String(select.disabled));
+          };
+          refreshDisabledState();
+          select.addEventListener("change", () => syncCustomSelect(select));
+          const observer = new MutationObserver(() => {
+            syncCustomSelect(select);
+            refreshDisabledState();
+          });
+          observer.observe(select, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ["disabled", "selected", "label", "value"]
+          });
+        }
+
+        document.addEventListener("pointerdown", event => {
+          if (openCustomSelect && !openCustomSelect.wrapper.contains(event.target)) {
+            closeCustomSelect();
+          }
+        });
+
+        document.addEventListener("keydown", event => {
+          if (event.key === "Escape" && openCustomSelect) {
+            event.preventDefault();
+            event.stopPropagation();
+            closeCustomSelect(true);
+          }
+        }, true);
+      }
+
       function updateFrameworkOptions(preferred) {
         const options = frameworkOptions[fields.appType.value] || [];
         fields.framework.replaceChildren();
@@ -596,6 +896,7 @@ export function renderDashboard() {
         if (options.some(([value]) => value === preferred)) {
           fields.framework.value = preferred;
         }
+        syncCustomSelect(fields.framework);
       }
 
       function readConfiguration() {
@@ -622,6 +923,7 @@ export function renderDashboard() {
           /^#[0-9a-f]{6}$/i.test(config.primaryColor || "")
             ? config.primaryColor : "#5b5bd6";
         fields.appVersion.value = config.appVersion || "1.0.0";
+        syncCustomSelects();
       }
 
       function applyConfiguration(config) {
@@ -718,6 +1020,8 @@ export function renderDashboard() {
         applyConfiguration(config);
         closeModal();
       });
+
+      installCustomSelects();
 
       const saved = readConfiguration();
       fillForm(saved);
