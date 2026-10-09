@@ -1,1192 +1,255 @@
-import { getAll } from "./core/tableStorage.js";
+(() => {
+  "use strict";
 
-export function getDashboard() {
-  return {
-    name: "AppBuilder",
-    environmentDetails: getAll("environmentDetails")
-  };
-}
+  const $ = id => document.getElementById(id);
+  const tableSelect = $("tableSelect");
+  const searchInput = $("searchInput");
+  const recordsContent = $("recordsContent");
+  const schemaContent = $("schemaContent");
+  const statusMessage = $("statusMessage");
+  const tableCount = $("tableCount");
+  const recordCount = $("recordCount");
+  const columnCount = $("columnCount");
+  const tableBadge = $("tableBadge");
+  const selectedTableName = $("selectedTableName");
+  const visibleCount = $("visibleCount");
+  const refreshButton = $("refreshButton");
+  const themeButton = $("themeButton");
+  const root = document.documentElement;
 
-function escapeHtml(value) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
+  let tables = [];
+  let selectedTable = null;
 
-function environmentIcon(environment) {
-  const icons = {
-    web: "W",
-    electron: "E",
-    expo: "M",
-    babylon: "G",
-    nextjs: "N"
-  };
+  function element(tag, className = "", value) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (value !== undefined) node.textContent = String(value);
+    return node;
+  }
 
-  return icons[environment] ?? "•";
-}
+  function empty(container, title, description = "") {
+    container.replaceChildren();
+    container.className = "empty-state";
+    container.append(element("strong", "", title));
+    if (description) container.append(document.createTextNode(description));
+  }
 
-function renderEnvironmentRows(rows) {
-  return rows
-    .map(
-      (row) => `
-        <tr data-search="${escapeHtml(
-          `${row.environment} ${row.type} ${row.description} ${row.decoder}`
-        )}">
-          <td>
-            <div class="environment-cell">
-              <div class="environment-icon">
-                ${escapeHtml(environmentIcon(row.environment))}
-              </div>
+  function valueText(value) {
+    if (value === null || value === undefined) return "";
+    return typeof value === "object" ? JSON.stringify(value) : String(value);
+  }
 
-              <div>
-                <div class="environment-name">
-                  ${escapeHtml(row.environment)}
-                </div>
+  function columnsFor(table) {
+    const declared = Array.isArray(table?.schema?.columns)
+      ? table.schema.columns.map(column => {
+          if (typeof column === "string") return column;
+          return column?.name ?? column?.column ?? column?.key ?? "";
+        }).filter(Boolean)
+      : [];
+    const discovered = (table?.rows ?? []).flatMap(row =>
+      row && typeof row === "object" ? Object.keys(row) : []
+    );
+    return [...new Set([...declared, ...discovered])];
+  }
 
-                <div class="environment-id">
-                  ID ${escapeHtml(row.id)}
-                </div>
-              </div>
-            </div>
-          </td>
-
-          <td>
-            <span class="type-badge">
-              ${escapeHtml(row.type)}
-            </span>
-          </td>
-
-          <td>
-            <span class="description">
-              ${escapeHtml(row.description)}
-            </span>
-          </td>
-
-          <td>
-            <code>${escapeHtml(row.decoder)}</code>
-          </td>
-
-          <td class="actions-cell">
-            <button
-              class="icon-button"
-              type="button"
-              aria-label="More actions"
-            >
-              ⋮
-            </button>
-          </td>
-        </tr>
-      `
-    )
-    .join("");
-}
-
-export function renderDashboard() {
-  const categories = getAll("categories");
-  const dashboard = getDashboard();
-  const environments = dashboard.environmentDetails;
-
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f6f7fb" id="themeColor">
-  <title>${escapeHtml(dashboard.name)} — Dashboard</title>
-
-  <script>
-    (() => {
-      const saved = localStorage.getItem("appbuilder-theme");
-      const dark = saved === "dark" ||
-        (saved !== "light" && window.matchMedia("(prefers-color-scheme: dark)").matches);
-      if (dark) document.documentElement.dataset.theme = "dark";
-    })();
-  </script>
-
-  <style>
-    :root {
-      color-scheme: light;
-      --bg: #f5f7fc;
-      --surface: #ffffff;
-      --text: #171a2b;
-      --muted: #72798d;
-      --border: #e5e8f1;
-      --accent: #5b5bd6;
-      --accent-hover: #4949bf;
-      --accent-soft: #eeeeff;
-      --shadow: 0 20px 60px rgba(35, 39, 85, .09);
+  function renderRecords() {
+    if (!selectedTable) {
+      empty(recordsContent, "No table selected", "Choose an available table above.");
+      visibleCount.textContent = "";
+      return;
     }
 
-    html[data-theme="dark"] {
-      color-scheme: dark;
-      --bg: #10121b;
-      --surface: #191c29;
-      --text: #f3f4ff;
-      --muted: #a0a6bc;
-      --border: #2b3042;
-      --accent: #9999ff;
-      --accent-hover: #b2b2ff;
-      --accent-soft: #292947;
-      --shadow: 0 20px 60px rgba(0, 0, 0, .25);
+    const columns = columnsFor(selectedTable);
+    const query = searchInput.value.trim().toLowerCase();
+    const allRows = selectedTable.rows ?? [];
+    const rows = allRows.filter(row =>
+      !query || columns.some(column =>
+        valueText(row?.[column]).toLowerCase().includes(query)
+      )
+    );
+
+    visibleCount.textContent = `${rows.length} of ${allRows.length} records`;
+    recordsContent.replaceChildren();
+
+    if (!columns.length || !rows.length) {
+      empty(
+        recordsContent,
+        query ? "No matching records" : "This table is empty",
+        query ? "Try another search term." : "No records are stored in this table."
+      );
+      return;
     }
 
-    * { box-sizing: border-box; }
+    recordsContent.className = "table-scroll";
+    const table = element("table");
+    const thead = element("thead");
+    const headerRow = element("tr");
 
-    body {
-      margin: 0;
-      min-width: 280px;
-      min-height: 100vh;
-      background:
-        radial-gradient(ellipse at 50% 0%, var(--accent-soft), transparent 48%),
-        var(--bg);
-      color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      transition: background .2s ease, color .2s ease;
+    for (const column of columns) {
+      const th = element("th", "", column);
+      th.scope = "col";
+      headerRow.append(th);
     }
 
-    button, select { font: inherit; }
+    thead.append(headerRow);
+    table.append(thead);
+    const tbody = element("tbody");
 
-    .topbar {
-      position: relative;
-      display: grid;
-      grid-template-columns: 1fr auto 1fr;
-      align-items: center;
-      min-height: 76px;
-      padding: 14px clamp(16px, 4vw, 44px);
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .topbar-title {
-      grid-column: 2;
-      margin: 0;
-      font-size: 1.12rem;
-      font-weight: 750;
-      letter-spacing: -.035em;
-      text-align: center;
-    }
-
-    .theme-button {
-      grid-column: 3;
-      justify-self: end;
-      display: grid;
-      place-items: center;
-      width: 44px;
-      height: 44px;
-      padding: 0;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background: var(--surface);
-      color: var(--text);
-      font-size: 1.25rem;
-      cursor: pointer;
-      transition: transform .18s ease, background .18s ease, border-color .18s ease;
-    }
-
-    #configurationButton {
-      grid-column: 1;
-      justify-self: start;
-    }
-
-    .theme-button:hover {
-      background: var(--accent-soft);
-      border-color: var(--accent);
-      transform: translateY(-1px);
-    }
-
-    .theme-button:focus-visible,
-    .environment-select:focus-visible {
-      outline: 3px solid var(--accent);
-      outline-offset: 3px;
-    }
-
-    .main {
-      display: grid;
-      gap: 10px;
-      width: min(100% - 32px, 760px);
-      margin: 0 auto;
-      padding: clamp(26px, 5vw, 52px) 0 80px;
-    }
-
-    .app-title {
-      margin: 0 0 21px;
-      text-align: center;
-    }
-
-    .app-title h1 {
-      margin: 0;
-      font-size: clamp(2.5rem, 8vw, 4.6rem);
-      line-height: 1.08;
-      letter-spacing: -.075em;
-      font-weight: 850;
-      background: linear-gradient(115deg, var(--text) 18%, var(--accent) 88%);
-      -webkit-background-clip: text;
-      background-clip: text;
-      color: transparent;
-    }
-
-    .dashboard-card {
-      padding: clamp(22px, 5vw, 36px);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      background: var(--surface);
-      box-shadow: var(--shadow);
-    }
-
-    .field-label {
-      display: block;
-      margin-bottom: 13px;
-      font-size: .96rem;
-      font-weight: 700;
-      letter-spacing: -.01em;
-    }
-
-    .environment-select {
-      display: block;
-      width: 100%;
-      min-height: 56px;
-      padding: 0 46px 0 16px;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      background-color: var(--bg);
-      color: var(--text);
-      cursor: pointer;
-    }
-
-    .environment-select:hover { border-color: var(--accent); }
-
-    .table-ui {
-      margin-top: 0;
-      overflow: hidden;
-    }
-
-    .table-ui-description {
-      margin: -4px 0 18px;
-      color: var(--muted);
-      font-size: .9rem;
-    }
-
-    .table-ui-scroll {
-      width: 100%;
-      overflow-x: auto;
-      border: 1px solid var(--border);
-      border-radius: 14px;
-    }
-
-    .table-ui table {
-      width: 100%;
-      border-collapse: collapse;
-      text-align: left;
-    }
-
-    .table-ui th,
-    .table-ui td {
-      padding: 13px 15px;
-      border-bottom: 1px solid var(--border);
-      overflow-wrap: anywhere;
-      vertical-align: top;
-    }
-
-    .table-ui th {
-      background: var(--bg);
-      font-size: .82rem;
-      font-weight: 750;
-    }
-
-    .table-ui td:first-child {
-      width: 35%;
-      color: var(--muted);
-      font-weight: 650;
-    }
-
-    .table-ui tbody tr:last-child td {
-      border-bottom: 0;
-    }
-
-    .table-ui-empty {
-      padding: 24px 16px;
-      border: 1px dashed var(--border);
-      border-radius: 14px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-
-
-    .modal-backdrop {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      display: grid;
-      place-items: center;
-      padding: 16px;
-      background: rgba(10, 12, 25, .58);
-      backdrop-filter: blur(5px);
-    }
-    .modal-backdrop[hidden] { display: none; }
-    .configuration-modal {
-      width: min(100%, 520px);
-      max-height: min(90vh, 760px);
-      overflow-y: auto;
-      padding: clamp(20px, 5vw, 32px);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      background: var(--surface);
-      color: var(--text);
-      box-shadow: var(--shadow);
-    }
-    .modal-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .modal-title {
-      margin: 0;
-      font-size: 1.45rem;
-      letter-spacing: -.04em;
-    }
-    .modal-close {
-      width: 40px;
-      height: 40px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--bg);
-      color: var(--text);
-      cursor: pointer;
-      font-size: 1.3rem;
-    }
-    .configuration-fields { display: grid; gap: 18px; }
-    .configuration-field label {
-      display: block;
-      margin-bottom: 8px;
-      font-size: .9rem;
-      font-weight: 700;
-    }
-    .configuration-field input,
-    .configuration-field select {
-      width: 100%;
-      min-height: 48px;
-      padding: 10px 12px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--bg);
-      color: var(--text);
-      font: inherit;
-    }
-    .configuration-field input[type="color"] {
-      padding: 5px;
-      cursor: pointer;
-    }
-    .configuration-field input:focus-visible,
-    .configuration-field select:focus-visible,
-    .modal-close:focus-visible,
-    .modal-actions button:focus-visible {
-      outline: 3px solid var(--accent);
-      outline-offset: 3px;
-    }
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      flex-wrap: wrap;
-      gap: 12px;
-      margin-top: 28px;
-    }
-    .modal-actions button {
-      min-height: 44px;
-      padding: 0 18px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: var(--bg);
-      color: var(--text);
-      font: inherit;
-      font-weight: 700;
-      cursor: pointer;
-    }
-    .modal-actions .save-button {
-      border-color: var(--accent);
-      background: var(--accent);
-      color: white;
-    }
-    .configuration-status {
-      min-height: 1.25em;
-      margin: 14px 0 0;
-      color: var(--muted);
-      font-size: .85rem;
-    }
-
-    @media (max-width: 480px) {
-      .topbar { min-height: 68px; }
-      .theme-button { width: 40px; height: 40px; border-radius: 12px; }
-      .main { padding-top: 32px; }
-      .app-title { margin-bottom: 16px; }
-      .dashboard-card { border-radius: 20px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        transition-duration: .01ms !important;
-        animation-duration: .01ms !important;
+    for (const row of rows) {
+      const tr = element("tr");
+      for (const column of columns) {
+        tr.append(element("td", "", valueText(row?.[column])));
       }
+      tbody.append(tr);
     }
 
-    .custom-select {
-      position: relative;
-      width: 100%;
-      min-width: 0;
+    table.append(tbody);
+    recordsContent.append(table);
+  }
+
+  function renderSchema() {
+    if (!selectedTable) {
+      empty(schemaContent, "No schema selected", "Choose a table to inspect its columns.");
+      return;
     }
-    .custom-select-native {
-      position: absolute !important;
-      width: 1px !important;
-      height: 1px !important;
-      padding: 0 !important;
-      margin: -1px !important;
-      overflow: hidden !important;
-      clip: rect(0, 0, 0, 0) !important;
-      white-space: nowrap !important;
-      border: 0 !important;
+
+    const columns = Array.isArray(selectedTable.schema?.columns)
+      ? selectedTable.schema.columns
+      : [];
+
+    if (!columns.length) {
+      empty(schemaContent, "No column definitions", "No columns are declared in this schema.");
+      return;
     }
-    .custom-select-trigger:disabled {
-      opacity: .55;
-      cursor: not-allowed;
+
+    schemaContent.replaceChildren();
+    schemaContent.className = "schema-grid";
+
+    for (const column of columns) {
+      const definition = typeof column === "string" ? { name: column } : column;
+      const name = definition?.name ?? definition?.column ?? definition?.key ?? "Unnamed column";
+      const details = Object.entries(definition ?? {})
+        .filter(([key]) => !["name", "column", "key"].includes(key))
+        .map(([key, value]) => `${key}: ${valueText(value)}`);
+
+      const item = element("div", "schema-item");
+      item.append(element("div", "schema-column", name));
+      item.append(element("div", "schema-type", details.length ? details.join(" · ") : "Column"));
+      schemaContent.append(item);
     }
-    .custom-select-trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      width: 100%;
-      min-height: 44px;
-      padding: 10px 13px;
-      border: 1px solid var(--border);
-      border-radius: 11px;
-      background: var(--surface);
-      color: var(--text);
-      font: inherit;
-      text-align: left;
-      cursor: pointer;
-      transition: border-color .18s ease, box-shadow .18s ease,
-        background .18s ease;
+  }
+
+  function selectTable(name) {
+    selectedTable = tables.find(table => table.name === name) ?? null;
+    searchInput.value = "";
+    searchInput.disabled = !selectedTable;
+    tableBadge.textContent = selectedTable?.name ?? "No table selected";
+    selectedTableName.textContent = selectedTable?.name ?? "Select a table";
+    recordCount.textContent = selectedTable ? String(selectedTable.rows.length) : "—";
+    columnCount.textContent = selectedTable ? String(columnsFor(selectedTable).length) : "—";
+    renderRecords();
+    renderSchema();
+  }
+
+  async function requestJson(url) {
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" }
+    });
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      throw new Error(data?.error || `Request failed (${response.status}).`);
     }
-    .custom-select-trigger:hover,
-    .custom-select-trigger[aria-expanded="true"] {
-      border-color: var(--accent);
-    }
-    .custom-select-trigger:focus-visible {
-      outline: none;
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
-    }
-    .custom-select-chevron {
-      flex: 0 0 auto;
-      color: var(--muted);
-      transition: transform .18s ease;
-    }
-    .custom-select-trigger[aria-expanded="true"] .custom-select-chevron {
-      transform: rotate(180deg);
-    }
-    .custom-select-popup {
-      position: absolute;
-      z-index: 1200;
-      top: calc(100% + 7px);
-      left: 0;
-      right: 0;
-      display: grid;
-      gap: 3px;
-      max-height: 230px;
-      overflow-y: auto;
-      padding: 6px;
-      border: 1px solid var(--border);
-      border-radius: 13px;
-      background: var(--surface);
-      box-shadow: var(--shadow), 0 5px 18px rgba(0, 0, 0, .08);
-      transform-origin: top center;
-      animation: custom-select-enter .16s ease-out;
-    }
-    .custom-select-popup[hidden] {
-      display: none;
-    }
-    .custom-select-option {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      width: 100%;
-      min-height: 39px;
-      padding: 9px 10px;
-      border: 0;
-      border-radius: 8px;
-      background: transparent;
-      color: var(--text);
-      font: inherit;
-      text-align: left;
-      cursor: pointer;
-      transition: background .15s ease, color .15s ease;
-    }
-    .custom-select-option:hover,
-    .custom-select-option:focus-visible {
-      outline: none;
-      background: var(--accent-soft);
-    }
-    .custom-select-option[aria-selected="true"] {
-      background: var(--accent-soft);
-      color: var(--accent);
-      font-weight: 600;
-    }
-    .custom-select-check {
-      flex: 0 0 auto;
-      color: var(--accent);
-      font-weight: 700;
-    }
-    @keyframes custom-select-enter {
-      from { opacity: 0; transform: translateY(-4px) scale(.99); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-    @media (prefers-reduced-motion: reduce) {
-      .custom-select-trigger,
-      .custom-select-chevron,
-      .custom-select-option {
-        transition: none;
-      }
-      .custom-select-popup { animation: none; }
-    }
-  </style>
-</head>
+    return data;
+  }
 
-<body>
-  <header class="topbar">
-    <button
-      id="configurationButton"
-      class="theme-button configuration-button"
-      type="button"
-      aria-label="App configuration"
-      title="App configuration"
-    ><span aria-hidden="true">⚙</span></button>
-    <h2 class="topbar-title">AppBuilder</h2>
-    <button
-      class="theme-button"
-      id="themeButton"
-      type="button"
-      aria-label="Switch to dark mode"
-      title="Switch theme"
-    ><span id="themeIcon" aria-hidden="true">☾</span></button>
-  </header>
+  async function loadTables() {
+    refreshButton.disabled = true;
+    tableSelect.disabled = true;
+    statusMessage.className = "status";
+    statusMessage.textContent = "Loading tables…";
 
-  <main class="main">
-    <section class="app-title" aria-labelledby="page-title">
-      <h1 id="page-title">AppBuilder</h1>
-    </section>
+    const previousName = tableSelect.value;
 
-    <section class="dashboard-card" aria-label="Environment selection">
-      <label class="field-label" for="environment-select">Select Environment</label>
-      <select class="environment-select" id="environment-select" name="environment">
-        <option value="">Choose an environment</option>
-        ${environments.map((item) => `
-        <option value="${escapeHtml(item.environment)}">${escapeHtml(item.environment)}</option>
-        `).join("")}
-      </select>
-    </section>
+    try {
+      const list = await requestJson("/api/tables");
+      if (!Array.isArray(list)) throw new Error("Invalid table-list response.");
 
-    <section class="dashboard-card" aria-label="Category selection">
-      <label class="field-label" for="category-select">Select Category</label>
-      <select class="environment-select" id="category-select" name="category">
-        <option value="">Choose a category</option>
-        ${categories.map((item) => `
-        <option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>
-        `).join("")}
-      </select>
-    </section>
-
-    <section class="dashboard-card" aria-label="Item selection">
-      <label class="field-label" for="item-select">Select Item</label>
-      <select class="environment-select" id="item-select" name="item" disabled>
-        <option value="">Choose a category first</option>
-      </select>
-    </section>
-
-    <section class="dashboard-card table-ui" aria-label="Table UI">
-      <h2 class="field-label">Table UI</h2>
-      <p class="table-ui-description" id="table-ui-description">
-        Select a category and item to view its stored fields.
-      </p>
-      <div id="table-ui-content" class="table-ui-empty" role="status">
-        No item selected.
-      </div>
-    </section>
-  </main>
-
-  <div class="modal-backdrop" id="configurationBackdrop" hidden>
-    <section class="configuration-modal" id="configurationModal"
-      role="dialog" aria-modal="true" aria-labelledby="configurationTitle">
-      <div class="modal-header">
-        <h2 class="modal-title" id="configurationTitle">App Configuration</h2>
-        <button class="modal-close" id="configurationClose" type="button"
-          aria-label="Close configuration">×</button>
-      </div>
-      <form id="configurationForm">
-        <div class="configuration-fields">
-          <div class="configuration-field">
-            <label for="configAppName">App Name</label>
-            <input id="configAppName" name="appName" type="text"
-              maxlength="80" required value="AppBuilder">
-          </div>
-          <div class="configuration-field">
-            <label for="configAppType">App Type</label>
-            <select id="configAppType" name="appType" required>
-              <option value="web">Web</option>
-              <option value="mobile">Mobile</option>
-              <option value="desktop">Desktop</option>
-              <option value="game">Game</option>
-            </select>
-          </div>
-          <div class="configuration-field">
-            <label for="configFramework">Framework</label>
-            <select id="configFramework" name="framework" required></select>
-          </div>
-          <div class="configuration-field">
-            <label for="configColorScheme">Color Scheme</label>
-            <select id="configColorScheme" name="colorScheme" required>
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-              <option value="custom">Custom</option>
-            </select>
-          </div>
-          <div class="configuration-field">
-            <label for="configPrimaryColor">Primary Color</label>
-            <input id="configPrimaryColor" name="primaryColor"
-              type="color" value="#5b5bd6">
-          </div>
-          <div class="configuration-field">
-            <label for="configAppVersion">App Version</label>
-            <input id="configAppVersion" name="appVersion" type="text"
-              maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9.+-]*"
-              required value="1.0.0">
-          </div>
-        </div>
-        <p class="configuration-status" id="configurationStatus"
-          role="status" aria-live="polite"></p>
-        <div class="modal-actions">
-          <button id="configurationCancel" type="button">Cancel</button>
-          <button class="save-button" type="submit">Save Configuration</button>
-        </div>
-      </form>
-    </section>
-  </div>
-
-  <script>
-    (() => {
-      const openButton = document.getElementById("configurationButton");
-      const backdrop = document.getElementById("configurationBackdrop");
-      const closeButton = document.getElementById("configurationClose");
-      const cancelButton = document.getElementById("configurationCancel");
-      const form = document.getElementById("configurationForm");
-      const status = document.getElementById("configurationStatus");
-      const root = document.documentElement;
-
-      const fields = {
-        appName: document.getElementById("configAppName"),
-        appType: document.getElementById("configAppType"),
-        framework: document.getElementById("configFramework"),
-        colorScheme: document.getElementById("configColorScheme"),
-        primaryColor: document.getElementById("configPrimaryColor"),
-        appVersion: document.getElementById("configAppVersion")
-      };
-
-      const frameworkOptions = {
-        web: [["nextjs", "Next.js"], ["react", "React"],
-          ["html-css-js", "HTML / CSS / JavaScript"]],
-        mobile: [["expo", "Expo"], ["react-native", "React Native"]],
-        desktop: [["electron", "Electron"]],
-        game: [["babylonjs", "Babylon.js"],
-          ["html-css-js", "HTML / CSS / JavaScript"]]
-      };
-
-      const customSelects = new Map();
-      let openCustomSelect = null;
-
-      function closeCustomSelect(returnFocus = false) {
-        if (!openCustomSelect) return;
-        const control = openCustomSelect;
-        control.popup.hidden = true;
-        control.trigger.setAttribute("aria-expanded", "false");
-        openCustomSelect = null;
-        if (returnFocus) control.trigger.focus();
-      }
-
-      function syncCustomSelect(select) {
-        const control = customSelects.get(select);
-        if (!control) return;
-
-        control.trigger.querySelector(".custom-select-value").textContent =
-          select.selectedOptions[0]?.textContent || "Select an option";
-        control.popup.replaceChildren();
-
-        [...select.options].forEach((option, index) => {
-          const item = document.createElement("button");
-          item.type = "button";
-          item.className = "custom-select-option";
-          item.setAttribute("role", "option");
-          item.setAttribute("aria-selected", String(option.selected));
-          item.dataset.index = String(index);
-          item.textContent = option.textContent;
-
-          if (option.selected) {
-            const check = document.createElement("span");
-            check.className = "custom-select-check";
-            check.setAttribute("aria-hidden", "true");
-            check.textContent = "✓";
-            item.append(check);
-          }
-
-          item.addEventListener("click", () => {
-            select.selectedIndex = index;
-            select.dispatchEvent(new Event("change", { bubbles: true }));
-            syncCustomSelect(select);
-            closeCustomSelect();
-            control.trigger.focus();
-          });
-
-          item.addEventListener("keydown", event => {
-            const items = [...control.popup.querySelectorAll(
-              ".custom-select-option"
-            )];
-            const current = items.indexOf(item);
-            let next = current;
-
-            if (event.key === "ArrowDown") next = Math.min(current + 1, items.length - 1);
-            else if (event.key === "ArrowUp") next = Math.max(current - 1, 0);
-            else if (event.key === "Home") next = 0;
-            else if (event.key === "End") next = items.length - 1;
-            else if (event.key === "Escape") {
-              event.preventDefault();
-              closeCustomSelect(true);
-              return;
-            } else return;
-
-            event.preventDefault();
-            items[next]?.focus();
-          });
-
-          control.popup.append(item);
-        });
-      }
-
-      function syncCustomSelects() {
-        for (const select of customSelects.keys()) syncCustomSelect(select);
-      }
-
-      function installCustomSelects() {
-        for (const select of [
-          fields.appType, fields.framework, fields.colorScheme,
-        document.getElementById("environment-select"),
-        document.getElementById("category-select"),
-        document.getElementById("item-select")
-        ].filter(Boolean)) {
-          const wrapper = document.createElement("div");
-          wrapper.className = "custom-select";
-
-          const trigger = document.createElement("button");
-          trigger.type = "button";
-          trigger.className = "custom-select-trigger";
-          trigger.setAttribute("aria-haspopup", "listbox");
-          trigger.setAttribute("aria-expanded", "false");
-
-          const value = document.createElement("span");
-          value.className = "custom-select-value";
-
-          const chevron = document.createElement("span");
-          chevron.className = "custom-select-chevron";
-          chevron.setAttribute("aria-hidden", "true");
-          chevron.textContent = "⌄";
-          trigger.append(value, chevron);
-
-          const popup = document.createElement("div");
-          popup.className = "custom-select-popup";
-          popup.hidden = true;
-          popup.setAttribute("role", "listbox");
-
-          const control = { select, wrapper, trigger, popup };
-          customSelects.set(select, control);
-
-          select.parentNode.insertBefore(wrapper, select);
-          wrapper.append(select, trigger, popup);
-          select.classList.add("custom-select-native");
-          select.tabIndex = -1;
-          select.setAttribute("aria-hidden", "true");
-
-          trigger.addEventListener("click", () => {
-            if (openCustomSelect === control) {
-              closeCustomSelect();
-              return;
-            }
-
-            closeCustomSelect();
-            syncCustomSelect(select);
-            popup.hidden = false;
-            trigger.setAttribute("aria-expanded", "true");
-            openCustomSelect = control;
-
-            const selected = popup.querySelector('[aria-selected="true"]');
-            (selected || popup.querySelector(".custom-select-option"))?.focus();
-          });
-
-          trigger.addEventListener("keydown", event => {
-            if (["ArrowDown", "ArrowUp", "Enter", " "].includes(event.key)) {
-              event.preventDefault();
-              if (openCustomSelect !== control) trigger.click();
-            }
-          });
-
-          const label = document.querySelector('label[for="' + select.id + '"]');
-          if (label) {
-            label.addEventListener("click", event => {
-              event.preventDefault();
-              trigger.focus();
-              trigger.click();
-            });
-          }
-
-          syncCustomSelect(select);
-          const refreshDisabledState = () => {
-            trigger.disabled = select.disabled;
-            trigger.setAttribute("aria-disabled", String(select.disabled));
-          };
-          refreshDisabledState();
-          select.addEventListener("change", () => syncCustomSelect(select));
-          const observer = new MutationObserver(() => {
-            syncCustomSelect(select);
-            refreshDisabledState();
-          });
-          observer.observe(select, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ["disabled", "selected", "label", "value"]
-          });
+      const loaded = await Promise.all(list.map(async entry => {
+        if (!entry || typeof entry.name !== "string") return null;
+        const table = await requestJson(`/api/tables/${encodeURIComponent(entry.name)}`);
+        if (typeof table.name !== "string" || !Array.isArray(table.rows)) {
+          throw new Error(`Invalid response for table "${entry.name}".`);
         }
+        return table;
+      }));
 
-        document.addEventListener("pointerdown", event => {
-          if (openCustomSelect && !openCustomSelect.wrapper.contains(event.target)) {
-            closeCustomSelect();
-          }
-        });
+      tables = loaded.filter(Boolean);
+      tableCount.textContent = String(tables.length);
+      tableSelect.replaceChildren();
 
-        document.addEventListener("keydown", event => {
-          if (event.key === "Escape" && openCustomSelect) {
-            event.preventDefault();
-            event.stopPropagation();
-            closeCustomSelect(true);
-          }
-        }, true);
+      if (!tables.length) {
+        tableSelect.append(new Option("No tables available", ""));
+        selectTable("");
+        statusMessage.textContent = "No table schemas were found.";
+        return;
       }
 
-      function updateFrameworkOptions(preferred) {
-        const options = frameworkOptions[fields.appType.value] || [];
-        fields.framework.replaceChildren();
-        for (const [value, label] of options) {
-          const option = document.createElement("option");
-          option.value = value;
-          option.textContent = label;
-          fields.framework.append(option);
-        }
-        if (options.some(([value]) => value === preferred)) {
-          fields.framework.value = preferred;
-        }
-        syncCustomSelect(fields.framework);
+      tableSelect.append(new Option("Select a table…", ""));
+      for (const table of tables) {
+        tableSelect.append(new Option(table.name, table.name));
       }
 
-      function readConfiguration() {
-        try {
-          const value = JSON.parse(
-            localStorage.getItem("appbuilder-configuration") || "{}"
-          );
-          return value && typeof value === "object" && !Array.isArray(value)
-            ? value : {};
-        } catch {
-          return {};
-        }
-      }
+      const nextName = tables.some(table => table.name === previousName)
+        ? previousName
+        : tables[0].name;
 
-      function fillForm(config) {
-        fields.appName.value = config.appName || "AppBuilder";
-        fields.appType.value = frameworkOptions[config.appType]
-          ? config.appType : "web";
-        updateFrameworkOptions(config.framework);
-        fields.colorScheme.value =
-          ["light", "dark", "custom"].includes(config.colorScheme)
-            ? config.colorScheme : "light";
-        fields.primaryColor.value =
-          /^#[0-9a-f]{6}$/i.test(config.primaryColor || "")
-            ? config.primaryColor : "#5b5bd6";
-        fields.appVersion.value = config.appVersion || "1.0.0";
-        syncCustomSelects();
-      }
+      tableSelect.value = nextName;
+      selectTable(nextName);
+      statusMessage.textContent = `Loaded ${tables.length} table${tables.length === 1 ? "" : "s"}.`;
+    } catch (error) {
+      tables = [];
+      tableCount.textContent = "—";
+      recordCount.textContent = "—";
+      columnCount.textContent = "—";
+      tableSelect.replaceChildren(new Option("Could not load tables", ""));
+      selectTable("");
+      statusMessage.className = "status error";
+      statusMessage.textContent = error.message || "Could not load table data.";
+    } finally {
+      tableSelect.disabled = false;
+      refreshButton.disabled = false;
+    }
+  }
 
-      function applyConfiguration(config) {
-        document.title = config.appName + " — Dashboard";
-        document.getElementById("page-title").textContent = config.appName;
+  function setTheme(theme, persist = true) {
+    root.dataset.theme = theme;
+    const dark = theme === "dark";
+    $("themeIcon").textContent = dark ? "☀" : "☾";
+    themeButton.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
+    themeButton.title = dark ? "Switch to light mode" : "Switch to dark mode";
+    $("themeColor").content = dark ? "#11131d" : "#f5f7fc";
 
-        if (config.colorScheme === "light" || config.colorScheme === "dark") {
-          root.dataset.theme = config.colorScheme;
-        }
-
-        root.style.setProperty("--accent", config.primaryColor);
-        root.style.setProperty("--accent-hover", config.primaryColor);
-        root.style.setProperty("--accent-soft",
-          root.dataset.theme === "dark" ? "#292947" : "#eeeeff");
-
-        const dark = root.dataset.theme === "dark";
-        const themeButton = document.getElementById("themeButton");
-        document.getElementById("themeIcon").textContent = dark ? "☀" : "☾";
-        themeButton.setAttribute("aria-label",
-          dark ? "Switch to light mode" : "Switch to dark mode");
-        themeButton.setAttribute("title",
-          dark ? "Switch to light mode" : "Switch to dark mode");
-        document.getElementById("themeColor").setAttribute(
-          "content", dark ? "#10121b" : "#f5f7fc");
-      }
-
-      function openModal() {
-        fillForm(readConfiguration());
-        status.textContent = "";
-        backdrop.hidden = false;
-        document.body.style.overflow = "hidden";
-        fields.appName.focus();
-      }
-
-      function closeModal() {
-        backdrop.hidden = true;
-        document.body.style.overflow = "";
-        openButton.focus();
-      }
-
-      openButton.addEventListener("click", openModal);
-      closeButton.addEventListener("click", closeModal);
-      cancelButton.addEventListener("click", closeModal);
-      backdrop.addEventListener("click", event => {
-        if (event.target === backdrop) closeModal();
-      });
-      document.addEventListener("keydown", event => {
-        if (event.key === "Escape" && !backdrop.hidden) closeModal();
-        if (event.key === "Tab" && !backdrop.hidden) {
-          const focusable = [...backdrop.querySelectorAll(
-            'button, input, select, [href], [tabindex]:not([tabindex="-1"])'
-          )].filter(el => !el.disabled);
-          const first = focusable[0];
-          const last = focusable[focusable.length - 1];
-          if (event.shiftKey && document.activeElement === first) {
-            event.preventDefault();
-            last.focus();
-          } else if (!event.shiftKey && document.activeElement === last) {
-            event.preventDefault();
-            first.focus();
-          }
-        }
-      });
-
-      fields.appType.addEventListener("change", () => {
-        updateFrameworkOptions();
-      });
-
-      form.addEventListener("submit", event => {
-        event.preventDefault();
-        if (!form.reportValidity()) return;
-
-        const config = {
-          appName: fields.appName.value.trim(),
-          appType: fields.appType.value,
-          framework: fields.framework.value,
-          colorScheme: fields.colorScheme.value,
-          primaryColor: fields.primaryColor.value,
-          appVersion: fields.appVersion.value.trim()
-        };
-
-        if (!config.appName || !config.appVersion) {
-          status.textContent = "App name and version are required.";
-          return;
-        }
-
-        try {
-          localStorage.setItem("appbuilder-configuration", JSON.stringify(config));
-        } catch {
-          status.textContent = "Could not save configuration in this browser.";
-          return;
-        }
-
-        applyConfiguration(config);
-        closeModal();
-      });
-
-      installCustomSelects();
-
-      const saved = readConfiguration();
-      fillForm(saved);
-      applyConfiguration({
-        appName: saved.appName || "AppBuilder",
-        colorScheme: saved.colorScheme || "light",
-        primaryColor: /^#[0-9a-f]{6}$/i.test(saved.primaryColor || "")
-          ? saved.primaryColor : "#5b5bd6"
-      });
-    })();
-
-    (() => {
-      const categorySelect = document.getElementById("category-select");
-      const itemSelect = document.getElementById("item-select");
-      const tableContent = document.getElementById("table-ui-content");
-      const tableDescription = document.getElementById("table-ui-description");
-      let currentItems = [];
-
-      function showEmpty(message) {
-        tableContent.replaceChildren();
-        tableContent.className = "table-ui-empty";
-        tableContent.textContent = message;
-        tableDescription.textContent =
-          "Select a category and item to view its stored fields.";
-      }
-
-      function renderSelectedItem() {
-        const selectedItem = currentItems.find(
-          (item) => String(item.id) === itemSelect.value
-        );
-
-        if (!selectedItem) {
-          showEmpty("No item selected.");
-          return;
-        }
-
-        tableContent.replaceChildren();
-        tableContent.className = "table-ui-scroll";
-
-        const table = document.createElement("table");
-        const thead = document.createElement("thead");
-        const headerRow = document.createElement("tr");
-
-        for (const label of ["Field", "Value"]) {
-          const th = document.createElement("th");
-          th.scope = "col";
-          th.textContent = label;
-          headerRow.append(th);
-        }
-
-        thead.append(headerRow);
-        table.append(thead);
-
-        const tbody = document.createElement("tbody");
-        for (const [key, value] of Object.entries(selectedItem)) {
-          const row = document.createElement("tr");
-          const fieldCell = document.createElement("td");
-          const valueCell = document.createElement("td");
-
-          fieldCell.textContent = key;
-          valueCell.textContent =
-            value === null || value === undefined
-              ? ""
-              : typeof value === "object"
-                ? JSON.stringify(value)
-                : String(value);
-
-          row.append(fieldCell, valueCell);
-          tbody.append(row);
-        }
-
-        table.append(tbody);
-        tableContent.append(table);
-        tableDescription.textContent =
-          "Stored fields for " + String(selectedItem.name ?? "selected item") + ".";
-      }
-
-      categorySelect.addEventListener("change", async () => {
-        itemSelect.replaceChildren();
-        itemSelect.disabled = true;
-        currentItems = [];
-        showEmpty("Choose an item to display its fields.");
-
-        const placeholder = document.createElement("option");
-        placeholder.value = "";
-        placeholder.textContent = categorySelect.value
-          ? "Loading items..."
-          : "Choose a category first";
-        itemSelect.append(placeholder);
-
-        if (!categorySelect.value) return;
-
-        try {
-          const response = await fetch(
-            "/api/items?categoryId=" + encodeURIComponent(categorySelect.value)
-          );
-          if (!response.ok) throw new Error("Unable to load items");
-
-          currentItems = await response.json();
-          if (!Array.isArray(currentItems)) {
-            throw new Error("Invalid items response");
-          }
-
-          itemSelect.replaceChildren();
-          const option = document.createElement("option");
-          option.value = "";
-          option.textContent = currentItems.length
-            ? "Choose an item"
-            : "No items available";
-          itemSelect.append(option);
-
-          for (const item of currentItems) {
-            const itemOption = document.createElement("option");
-            itemOption.value = item.id;
-            itemOption.textContent = item.name ?? "Item " + item.id;
-            itemSelect.append(itemOption);
-          }
-
-          itemSelect.disabled = currentItems.length === 0;
-          showEmpty(
-            currentItems.length
-              ? "Select an item to display its fields."
-              : "No items exist in this category yet."
-          );
-        } catch {
-          currentItems = [];
-          itemSelect.replaceChildren();
-          const option = document.createElement("option");
-          option.value = "";
-          option.textContent = "Failed to load items";
-          itemSelect.append(option);
-          showEmpty("Could not load items. Please try again.");
-        }
-      });
-
-      itemSelect.addEventListener("change", renderSelectedItem);
-    })();
-
-    (() => {
-      const root = document.documentElement;
-      const button = document.getElementById("themeButton");
-      const icon = document.getElementById("themeIcon");
-      const themeColor = document.getElementById("themeColor");
-
-      function updateThemeControls() {
-        const dark = root.dataset.theme === "dark";
-        icon.textContent = dark ? "☀" : "☾";
-        button.setAttribute("aria-label", dark ? "Switch to light mode" : "Switch to dark mode");
-        button.setAttribute("title", dark ? "Switch to light mode" : "Switch to dark mode");
-        themeColor.setAttribute("content", dark ? "#10121b" : "#f5f7fc");
-      }
-
-      function setTheme(theme) {
-        root.dataset.theme = theme;
+    if (persist) {
+      try {
         localStorage.setItem("appbuilder-theme", theme);
-        updateThemeControls();
+      } catch {
+        // Theme still works when browser storage is unavailable.
       }
+    }
+  }
 
-      button.addEventListener("click", () => {
-        setTheme(root.dataset.theme === "dark" ? "light" : "dark");
-      });
+  tableSelect?.addEventListener("change", () => selectTable(tableSelect.value));
+  searchInput?.addEventListener("input", renderRecords);
+  refreshButton?.addEventListener("click", loadTables);
+  themeButton?.addEventListener("click", () => {
+    setTheme(root.dataset.theme === "dark" ? "light" : "dark");
+  });
 
-      updateThemeControls();
-    })();
-  </script>
-</body>
-</html>`;
-}
+  try {
+    setTheme(localStorage.getItem("appbuilder-theme") === "dark" ? "dark" : "light", false);
+  } catch {
+    setTheme("light", false);
+  }
+
+  loadTables();
+})();

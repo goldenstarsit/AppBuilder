@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f6f7fb" id="themeColor">
+<title>App Builder — Dashboard</title>
+<script>
+(() => {
+  try {
+    const saved = localStorage.getItem("appbuilder-theme");
+    if (saved === "dark" || (saved !== "light" && matchMedia("(prefers-color-scheme: dark)").matches))
+      document.documentElement.dataset.theme = "dark";
+  } catch {}
+})();
+</script>
+<link rel="stylesheet" href="./index.css">
+</head>
+<body>
+<header class="topbar">
+  <span aria-hidden="true"></span>
+  <button class="left-button" aria-label="Settings">
+  ⚙
+</button>
+  <h2 class="topbar-title">App Builder</h2>
+  <button class="theme-button" id="themeButton" type="button" aria-label="Switch theme" title="Switch theme"><span id="themeIcon" aria-hidden="true">☾</span></button>
+</header>
+<main class="main">
+  <section class="app-title" aria-labelledby="page-title">
+    <h1 id="page-title" style="display:flex;align-items:center;justify-content:center; gap:10px">
+      <span>App Builder</span>
+    </h1>
+  </section>
+
+  <section class="dashboard-card" aria-label="Table selection">
+    <label class="field-label" for="tableSelect">Select Table</label>
+    <select class="environment-select" id="tableSelect" name="table">
+      <option value="">Loading tables…</option>
+    </select>
+    <p class="status-line" id="statusMessage" role="status" aria-live="polite">Loading table definitions…</p>
+  </section>
+
+<section class="dashboard-card" aria-label="Table selection">
+    <label class="field-label" for="tableSelect">Select Table</label>
+    <select class="environment-select" id="tableSelect" name="table">
+      <option value="">Loading tables…</option>
+    </select>
+    <p class="status-line" id="statusMessage" role="status" aria-live="polite">Loading table definitions…</p>
+  </section>
+
+<section class="dashboard-card" aria-label="Table selection">
+    <label class="field-label" for="tableSelect">Select Table</label>
+    <select class="environment-select" id="tableSelect" name="table">
+      <option value="">Loading tables…</option>
+    </select>
+    <p class="status-line" id="statusMessage" role="status" aria-live="polite">Loading table definitions…</p>
+  </section>
+
+    <section class="dashboard-card" aria-label="Table">
+      <h2 class="field-label">Table</h2>
+      <p class="table-ui-description">Sample records displayed in rows and columns.</p>
+      <div class="table-ui-scroll">
+        <table style="width:100%; border-collapse:collapse; text-align:left;">
+          <thead>
+            <tr>
+              <th style="padding:12px; border-bottom:1px solid var(--border);">ID</th>
+              <th style="padding:12px; border-bottom:1px solid var(--border);">Name</th>
+              <th style="padding:12px; border-bottom:1px solid var(--border);">Type</th>
+              <th style="padding:12px; border-bottom:1px solid var(--border);">Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td style="padding:12px; border-bottom:1px solid var(--border);">1</td><td style="padding:12px; border-bottom:1px solid var(--border);">Ali</td><td style="padding:12px; border-bottom:1px solid var(--border);">String</td><td style="padding:12px; border-bottom:1px solid var(--border);">Hello</td></tr>
+            <tr><td style="padding:12px; border-bottom:1px solid var(--border);">2</td><td style="padding:12px; border-bottom:1px solid var(--border);">Age</td><td style="padding:12px; border-bottom:1px solid var(--border);">Number</td><td style="padding:12px; border-bottom:1px solid var(--border);">25</td></tr>
+            <tr><td style="padding:12px; border-bottom:1px solid var(--border);">3</td><td style="padding:12px; border-bottom:1px solid var(--border);">Active</td><td style="padding:12px; border-bottom:1px solid var(--border);">Boolean</td><td style="padding:12px; border-bottom:1px solid var(--border);">true</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="status-line">3 sample records · 4 columns</p>
+    </section>
+
+</main>
+<script src="/index.js" defer></script>
+</body>
+</html>
