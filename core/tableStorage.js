@@ -4,240 +4,177 @@ import path from "node:path";
 const TABLES_DIR = path.resolve("tables");
 const MAX_INDEX_FILE_SIZE = 100 * 1024;
 
-function readJson(filePath, fallback) {
-  if (!fs.existsSync(filePath)) {
-    return fallback;
+function readJson(file, fallback) {
+  return fs.existsSync(file)
+    ? JSON.parse(fs.readFileSync(file, "utf8"))
+    : fallback;
+}
+
+function writeJson(file, value) {
+  fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
+}
+
+function tableFile(name) {
+  return path.join(TABLES_DIR, `${name}.json`);
+}
+
+function indexFile(name, index) {
+  return path.join(TABLES_DIR, `${name}${index}.json`);
+}
+
+function validateTableName(name) {
+  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name) ||
+      ["data", "schema"].includes(name)) {
+    throw new Error(`Invalid table name: ${name}`);
   }
-
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function writeJson(filePath, value) {
-  fs.writeFileSync(
-    filePath,
-    `${JSON.stringify(value, null, 2)}\n`,
-    "utf8"
-  );
-}
-
-function tableFile(tableName) {
-  return path.join(TABLES_DIR, `${tableName}.json`);
-}
-
-function indexFile(tableName, index) {
-  return path.join(TABLES_DIR, `${tableName}${index}.json`);
-}
-
-function dataFile() {
-  return path.join(TABLES_DIR, "data.json");
-}
-
-function schemaFile() {
-  return path.join(TABLES_DIR, "schema.json");
-}
-
-function serializeRows(rows) {
-  return `${JSON.stringify(rows, null, 2)}\n`;
-}
-
-function validateTableName(tableName) {
-  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(tableName)) {
-    throw new Error(`Invalid table name: ${tableName}`);
-  }
-
-  if (tableName === "data" || tableName === "schema") {
-    throw new Error(`Reserved table name: ${tableName}`);
-  }
-}
-
-function validateRow(row) {
-  if (!row || typeof row !== "object" || Array.isArray(row)) {
-    throw new Error("A table row must be an object.");
-  }
-}
-
-function getSchema() {
-  return readJson(schemaFile(), {});
-}
-
-function getRows(tableName) {
-  validateTableName(tableName);
-  return readJson(tableFile(tableName), []);
 }
 
 export function getTableNames() {
-  const schema = getSchema();
-  return Object.keys(schema);
+  return fs.readdirSync(TABLES_DIR)
+    .filter(file => /^[A-Za-z][A-Za-z0-9_-]*\.json$/.test(file))
+    .map(file => file.slice(0, -5))
+    .filter(name => !["data", "schema"].includes(name))
+    .filter(name => !/\d+$/.test(name))
+    .sort();
 }
 
-function writeIndexedFiles(tableName, rows) {
-  const files = fs.readdirSync(TABLES_DIR);
+function getRows(name) {
+  validateTableName(name);
+  const pattern = new RegExp(`^${name}(\\d+)\\.json$`);
 
-  for (const file of files) {
-    const match = file.match(
-      new RegExp(`^${tableName}(\\d+)\\.json$`)
-    );
+  return fs.readdirSync(TABLES_DIR)
+    .filter(file => pattern.test(file))
+    .sort((a, b) =>
+      Number(a.match(/(\d+)\.json$/)[1]) -
+      Number(b.match(/(\d+)\.json$/)[1])
+    )
+    .flatMap(file => {
+      const rows = readJson(path.join(TABLES_DIR, file), []);
+      if (!Array.isArray(rows)) {
+        throw new Error(`Invalid indexed data file: ${file}`);
+      }
+      return rows;
+    });
+}
 
-    if (match) {
+function writeIndexedFiles(name, rows) {
+  for (const file of fs.readdirSync(TABLES_DIR)) {
+    if (new RegExp(`^${name}\\d+\\.json$`).test(file)) {
       fs.unlinkSync(path.join(TABLES_DIR, file));
     }
   }
 
-  let currentRows = [];
+  let batch = [];
   let index = 1;
 
   for (const row of rows) {
-    const candidateRows = [...currentRows, row];
-    const candidate = serializeRows(candidateRows);
-
-    if (Buffer.byteLength(candidate, "utf8") > MAX_INDEX_FILE_SIZE) {
-      if (currentRows.length === 0) {
-        throw new Error(
-          `A single row exceeds the 100 KB indexed-file limit.`
-        );
-      }
-
-      writeJson(indexFile(tableName, index), currentRows);
-
-      index += 1;
-      currentRows = [row];
-
-      if (
-        Buffer.byteLength(serializeRows(currentRows), "utf8") >
-        MAX_INDEX_FILE_SIZE
-      ) {
-        throw new Error(
-          `A single row exceeds the 100 KB indexed-file limit.`
-        );
+    const candidate = [...batch, row];
+    if (Buffer.byteLength(JSON.stringify(candidate, null, 2) + "\n") > MAX_INDEX_FILE_SIZE) {
+      if (!batch.length) throw new Error("A single row exceeds the 100 KB limit.");
+      writeJson(indexFile(name, index++), batch);
+      batch = [row];
+      if (Buffer.byteLength(JSON.stringify(batch, null, 2) + "\n") > MAX_INDEX_FILE_SIZE) {
+        throw new Error("A single row exceeds the 100 KB limit.");
       }
     } else {
-      currentRows = candidateRows;
+      batch = candidate;
     }
   }
 
-  if (currentRows.length > 0) {
-    writeJson(indexFile(tableName, index), currentRows);
-  }
+  if (batch.length) writeJson(indexFile(name, index), batch);
 }
 
 function rebuildDataFile() {
   const data = {};
-
-  for (const tableName of getTableNames()) {
-    data[tableName] = getRows(tableName);
-  }
-
-  writeJson(dataFile(), data);
+  for (const name of getTableNames()) data[name] = getRows(name);
+  writeJson(path.join(TABLES_DIR, "data.json"), data);
 }
 
-function persistTable(tableName, rows) {
-  writeJson(tableFile(tableName), rows);
-  writeIndexedFiles(tableName, rows);
+function persistTable(name, rows) {
+  writeIndexedFiles(name, rows);
   rebuildDataFile();
 }
 
-export function getSchemaDefinition(tableName) {
-  validateTableName(tableName);
-
-  const schema = getSchema();
-
-  if (!schema[tableName]) {
-    throw new Error(`Table does not exist in schema: ${tableName}`);
+export function getSchemaDefinition(name) {
+  validateTableName(name);
+  const schema = readJson(tableFile(name), null);
+  if (!schema || !Array.isArray(schema.columns)) {
+    throw new Error(`Table schema not found or invalid: ${name}`);
   }
-
-  return schema[tableName];
+  return schema;
 }
 
-export function createTable(tableName, columns = []) {
-  validateTableName(tableName);
-
-  const schema = getSchema();
-
-  if (schema[tableName]) {
-    throw new Error(`Table already exists: ${tableName}`);
-  }
-
-  schema[tableName] = {
-    columns
-  };
-
-  writeJson(schemaFile(), schema);
-  writeJson(tableFile(tableName), []);
-  writeIndexedFiles(tableName, []);
+export function createTable(name, columns = []) {
+  validateTableName(name);
+  if (fs.existsSync(tableFile(name))) throw new Error(`Table already exists: ${name}`);
+  writeJson(tableFile(name), { columns });
   rebuildDataFile();
-
-  return getSchemaDefinition(tableName);
+  return getSchemaDefinition(name);
 }
 
-export function getAll(tableName) {
-  return [...getRows(tableName)];
+export function getAll(name) {
+  getSchemaDefinition(name);
+  return getRows(name);
 }
 
-export function getById(tableName, id) {
-  return getRows(tableName).find((row) => row.id === id) ?? null;
+export function getById(name, id) {
+  return getAll(name).find(row => row.id === id) ?? null;
 }
 
-export function insert(tableName, row) {
-  validateRow(row);
-  getSchemaDefinition(tableName);
-
-  const rows = getRows(tableName);
-
-  if (rows.some((item) => item.id === row.id)) {
-    throw new Error(`Duplicate id: ${row.id}`);
+export function insert(name, row) {
+  getSchemaDefinition(name);
+  if (!row || typeof row !== "object" || Array.isArray(row)) {
+    throw new Error("A table row must be an object.");
   }
 
-  rows.push(row);
-  persistTable(tableName, rows);
+  const rows = getRows(name);
+  const schema = getSchemaDefinition(name);
 
-  return row;
-}
-
-export function update(tableName, id, changes) {
-  validateRow(changes);
-  getSchemaDefinition(tableName);
-
-  const rows = getRows(tableName);
-  const index = rows.findIndex((row) => row.id === id);
-
-  if (index === -1) {
-    return null;
+  if (schema.constraints?.name?.unique &&
+      rows.some(item => item.name === row.name)) {
+    throw new Error(`Duplicate name: ${row.name}`);
   }
 
-  const updated = {
-    ...rows[index],
-    ...changes,
-    id
-  };
-
-  rows[index] = updated;
-  persistTable(tableName, rows);
-
-  return updated;
+  const next = { ...row, id: rows.length + 1 };
+  rows.push(next);
+  persistTable(name, rows);
+  return next;
 }
 
-export function remove(tableName, id) {
-  getSchemaDefinition(tableName);
+export function update(name, id, changes) {
+  getSchemaDefinition(name);
+  const rows = getRows(name);
+  const index = rows.findIndex(row => row.id === id);
+  if (index < 0) return null;
 
-  const rows = getRows(tableName);
-  const index = rows.findIndex((row) => row.id === id);
-
-  if (index === -1) {
-    return false;
+  if (changes.name !== undefined &&
+      rows.some((row, i) => i !== index && row.name === changes.name)) {
+    throw new Error(`Duplicate name: ${changes.name}`);
   }
+
+  rows[index] = { ...rows[index], ...changes, id };
+  persistTable(name, rows);
+  return rows[index];
+}
+
+export function remove(name, id) {
+  getSchemaDefinition(name);
+  const rows = getRows(name);
+  const index = rows.findIndex(row => row.id === id);
+  if (index < 0) return false;
 
   rows.splice(index, 1);
-  persistTable(tableName, rows);
-
+  rows.forEach((row, i) => { row.id = i + 1; });
+  persistTable(name, rows);
   return true;
 }
 
 export function getData() {
-  return readJson(dataFile(), {});
+  return readJson(path.join(TABLES_DIR, "data.json"), {});
 }
 
 export function getTables() {
-  return getTableNames().map((name) => ({
+  return getTableNames().map(name => ({
     name,
     schema: getSchemaDefinition(name),
     rows: getRows(name)

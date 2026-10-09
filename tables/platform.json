@@ -1,0 +1,20 @@
+{
+  "columns": [
+    "id",
+    "name",
+    "description"
+  ],
+  "constraints": {
+    "id": {
+      "type": "integer",
+      "unique": true,
+      "required": true
+    },
+    "name": {
+      "type": "string",
+      "unique": true,
+      "required": true
+    }
+  },
+  "idPolicy": "sequential_from_1_reassign_after_delete"
+}

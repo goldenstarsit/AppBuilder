@@ -1,72 +1,29 @@
 {
-  "environmentDetails": [
+  "platform": [
     {
       "id": 1,
-      "environment": "web",
-      "type": "web",
-      "description": "Web application",
-      "decoder": "frontend/web/decoder.js"
+      "name": "Web",
+      "description": "Web applications"
     },
     {
       "id": 2,
-      "environment": "electron",
-      "type": "desktop",
-      "description": "Desktop application",
-      "decoder": "frontend/electron/decoder.js"
+      "name": "Mobile",
+      "description": "Mobile applications"
     },
     {
       "id": 3,
-      "environment": "expo",
-      "type": "mobile",
-      "description": "Mobile application",
-      "decoder": "frontend/expo/decoder.js"
+      "name": "Desktop",
+      "description": "Desktop applications"
     },
     {
       "id": 4,
-      "environment": "babylon",
-      "type": "games",
-      "description": "Game application",
-      "decoder": "frontend/babylon/decoder.js"
+      "name": "Game",
+      "description": "Game applications"
     },
     {
       "id": 5,
-      "environment": "nextjs",
-      "type": "web",
-      "description": "Next.js web application",
-      "decoder": "frontend/nextjs/decoder.js"
+      "name": "Basic Web",
+      "description": "Basic web applications"
     }
-  ],
-  "categories": [
-    {
-      "id": 1,
-      "name": "Tags",
-      "description": "HTML tag definitions and tag types."
-    },
-    {
-      "id": 2,
-      "name": "Attributes",
-      "description": "Attributes that can be assigned to tags."
-    },
-    {
-      "id": 3,
-      "name": "Content",
-      "description": "Text and other content placed inside elements."
-    },
-    {
-      "id": 4,
-      "name": "Elements",
-      "description": "Reusable HTML element definitions."
-    },
-    {
-      "id": 5,
-      "name": "Styles",
-      "description": "CSS style definitions and rules."
-    },
-    {
-      "id": 6,
-      "name": "Scripts",
-      "description": "JavaScript code and script definitions."
-    }
-  ],
-  "items": []
+  ]
 }

@@ -7,66 +7,27 @@ import {
   getTableRow
 } from "../core/tableService.js";
 
-test("table service lists registered tables", () => {
+test("table service lists the registered platform table", () => {
   const tables = listTables();
-
-  assert.equal(tables.length, 3);
-
-  const environmentTable = tables.find(
-    (table) => table.name === "environmentDetails"
-  );
-  const categoriesTable = tables.find(
-    (table) => table.name === "categories"
-  );
-  const itemsTable = tables.find(
-    (table) => table.name === "items"
-  );
-
-  assert.ok(environmentTable);
-  assert.deepEqual(environmentTable.schema.columns, [
-    "id",
-    "environment",
-    "type",
-    "description",
-    "decoder"
-  ]);
-
-  assert.ok(categoriesTable);
-  assert.deepEqual(categoriesTable.schema.columns, [
-    "id",
-    "name",
-    "description"
-  ]);
-
-  assert.ok(itemsTable);
-  assert.deepEqual(itemsTable.schema.columns, [
-    "id",
-    "categoryId",
-    "name",
-    "description",
-    "type",
-    "value"
-  ]);
+  assert.deepEqual(tables.map(table => table.name), ["platform"]);
+  assert.deepEqual(tables[0].schema.columns, ["id", "name", "description"]);
 });
 
-test("table service returns complete table", () => {
-  const table = getTable("environmentDetails");
-
-  assert.equal(table.name, "environmentDetails");
+test("table service returns the complete platform table", () => {
+  const table = getTable("platform");
+  assert.equal(table.name, "platform");
   assert.equal(table.rows.length, 5);
-  assert.equal(table.schema.columns.length, 5);
+  assert.deepEqual(table.schema.columns, ["id", "name", "description"]);
 });
 
-test("table service returns table rows", () => {
-  const rows = getTableRows("environmentDetails");
-
+test("table service returns platform rows", () => {
+  const rows = getTableRows("platform");
   assert.equal(rows.length, 5);
   assert.equal(rows[0].id, 1);
 });
 
-test("table service returns row by id", () => {
-  const row = getTableRow("environmentDetails", 1);
-
-  assert.equal(row.environment, "web");
-  assert.equal(row.type, "web");
+test("table service returns a platform row by id", () => {
+  const row = getTableRow("platform", 1);
+  assert.equal(row.name, "Web");
+  assert.equal(row.description, "Web applications");
 });

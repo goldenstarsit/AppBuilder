@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-
 import {
+  getSchemaDefinition,
   getAll,
   getById,
   insert,
@@ -15,61 +15,56 @@ import {
 
 const tablesDir = path.resolve("tables");
 
-test("environmentDetails table can be read", () => {
-  const rows = getAll("environmentDetails");
-
+test("platform schema and five records can be read", () => {
+  assert.deepEqual(getSchemaDefinition("platform").columns, [
+    "id", "name", "description"
+  ]);
+  const rows = getAll("platform");
   assert.equal(rows.length, 5);
-  assert.equal(rows[0].environment, "web");
+  assert.deepEqual(rows.map(row => row.id), [1, 2, 3, 4, 5]);
+  assert.equal(rows[0].name, "Web");
 });
 
-test("environmentDetails row can be found by id", () => {
-  const row = getById("environmentDetails", 1);
-
-  assert.equal(row.environment, "web");
+test("platform row can be found by id", () => {
+  assert.equal(getById("platform", 1).name, "Web");
+  assert.equal(getById("platform", 999), null);
 });
 
-test("insert, update and delete work", () => {
-  const row = {
-    id: 999999,
-    environment: "test",
-    type: "test",
-    description: "Temporary test row",
-    decoder: "test/decoder.js"
-  };
-
-  insert("environmentDetails", row);
-
-  assert.equal(getById("environmentDetails", row.id).environment, "test");
-
-  update("environmentDetails", row.id, {
-    description: "Updated test row"
+test("insert, update and delete work without leaving test data", () => {
+  const row = insert("platform", {
+    name: "Storage Test Platform",
+    description: "Temporary test record"
   });
 
-  assert.equal(
-    getById("environmentDetails", row.id).description,
-    "Updated test row"
-  );
+  try {
+    assert.equal(row.id, 6);
+    assert.equal(getById("platform", 6).name, "Storage Test Platform");
 
-  assert.equal(remove("environmentDetails", row.id), true);
-  assert.equal(getById("environmentDetails", row.id), null);
+    update("platform", 6, { description: "Updated test record" });
+    assert.equal(getById("platform", 6).description, "Updated test record");
+
+    assert.throws(
+      () => insert("platform", { name: "Web", description: "Duplicate" }),
+      /Duplicate name/
+    );
+  } finally {
+    remove("platform", 6);
+  }
+
+  assert.equal(getAll("platform").length, 5);
+  assert.deepEqual(getAll("platform").map(row => row.id), [1, 2, 3, 4, 5]);
 });
 
-test("central data file contains environmentDetails", () => {
-  const data = getData();
-
-  assert.ok(Array.isArray(data.environmentDetails));
-  assert.equal(data.environmentDetails.length, 5);
+test("central data file matches indexed platform records", () => {
+  assert.deepEqual(getData().platform, getAll("platform"));
 });
 
-test("indexed files are within 100 KB", () => {
-  const files = fs
-    .readdirSync(tablesDir)
-    .filter((file) => /^environmentDetails\d+\.json$/.test(file));
+test("indexed platform files are within 100 KB", () => {
+  const files = fs.readdirSync(tablesDir)
+    .filter(file => /^platform\d+\.json$/.test(file));
 
   assert.ok(files.length > 0);
-
   for (const file of files) {
-    const size = fs.statSync(path.join(tablesDir, file)).size;
-    assert.ok(size <= TABLE_MAX_SIZE);
+    assert.ok(fs.statSync(path.join(tablesDir, file)).size <= TABLE_MAX_SIZE);
   }
 });

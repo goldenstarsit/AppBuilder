@@ -1,0 +1,27 @@
+[
+  {
+    "id": 1,
+    "name": "Web",
+    "description": "Web applications"
+  },
+  {
+    "id": 2,
+    "name": "Mobile",
+    "description": "Mobile applications"
+  },
+  {
+    "id": 3,
+    "name": "Desktop",
+    "description": "Desktop applications"
+  },
+  {
+    "id": 4,
+    "name": "Game",
+    "description": "Game applications"
+  },
+  {
+    "id": 5,
+    "name": "Basic Web",
+    "description": "Basic web applications"
+  }
+]
