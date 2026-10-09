@@ -313,6 +313,110 @@ export function renderDashboard() {
     }
 
 
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: rgba(10, 12, 25, .58);
+      backdrop-filter: blur(5px);
+    }
+    .modal-backdrop[hidden] { display: none; }
+    .configuration-modal {
+      width: min(100%, 520px);
+      max-height: min(90vh, 760px);
+      overflow-y: auto;
+      padding: clamp(20px, 5vw, 32px);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .modal-title {
+      margin: 0;
+      font-size: 1.45rem;
+      letter-spacing: -.04em;
+    }
+    .modal-close {
+      width: 40px;
+      height: 40px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 1.3rem;
+    }
+    .configuration-fields { display: grid; gap: 18px; }
+    .configuration-field label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: .9rem;
+      font-weight: 700;
+    }
+    .configuration-field input,
+    .configuration-field select {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+    }
+    .configuration-field input[type="color"] {
+      padding: 5px;
+      cursor: pointer;
+    }
+    .configuration-field input:focus-visible,
+    .configuration-field select:focus-visible,
+    .modal-close:focus-visible,
+    .modal-actions button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .modal-actions button {
+      min-height: 44px;
+      padding: 0 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font: inherit;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .modal-actions .save-button {
+      border-color: var(--accent);
+      background: var(--accent);
+      color: white;
+    }
+    .configuration-status {
+      min-height: 1.25em;
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: .85rem;
+    }
+
     @media (max-width: 480px) {
       .topbar { min-height: 68px; }
       .theme-button { width: 40px; height: 40px; border-radius: 12px; }
@@ -392,7 +496,237 @@ export function renderDashboard() {
     </section>
   </main>
 
+  <div class="modal-backdrop" id="configurationBackdrop" hidden>
+    <section class="configuration-modal" id="configurationModal"
+      role="dialog" aria-modal="true" aria-labelledby="configurationTitle">
+      <div class="modal-header">
+        <h2 class="modal-title" id="configurationTitle">App Configuration</h2>
+        <button class="modal-close" id="configurationClose" type="button"
+          aria-label="Close configuration">×</button>
+      </div>
+      <form id="configurationForm">
+        <div class="configuration-fields">
+          <div class="configuration-field">
+            <label for="configAppName">App Name</label>
+            <input id="configAppName" name="appName" type="text"
+              maxlength="80" required value="AppBuilder">
+          </div>
+          <div class="configuration-field">
+            <label for="configAppType">App Type</label>
+            <select id="configAppType" name="appType" required>
+              <option value="web">Web</option>
+              <option value="mobile">Mobile</option>
+              <option value="desktop">Desktop</option>
+              <option value="game">Game</option>
+            </select>
+          </div>
+          <div class="configuration-field">
+            <label for="configFramework">Framework</label>
+            <select id="configFramework" name="framework" required></select>
+          </div>
+          <div class="configuration-field">
+            <label for="configColorScheme">Color Scheme</label>
+            <select id="configColorScheme" name="colorScheme" required>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+          <div class="configuration-field">
+            <label for="configPrimaryColor">Primary Color</label>
+            <input id="configPrimaryColor" name="primaryColor"
+              type="color" value="#5b5bd6">
+          </div>
+          <div class="configuration-field">
+            <label for="configAppVersion">App Version</label>
+            <input id="configAppVersion" name="appVersion" type="text"
+              maxlength="30" pattern="[A-Za-z0-9][A-Za-z0-9.+-]*"
+              required value="1.0.0">
+          </div>
+        </div>
+        <p class="configuration-status" id="configurationStatus"
+          role="status" aria-live="polite"></p>
+        <div class="modal-actions">
+          <button id="configurationCancel" type="button">Cancel</button>
+          <button class="save-button" type="submit">Save Configuration</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <script>
+    (() => {
+      const openButton = document.getElementById("configurationButton");
+      const backdrop = document.getElementById("configurationBackdrop");
+      const closeButton = document.getElementById("configurationClose");
+      const cancelButton = document.getElementById("configurationCancel");
+      const form = document.getElementById("configurationForm");
+      const status = document.getElementById("configurationStatus");
+      const root = document.documentElement;
+
+      const fields = {
+        appName: document.getElementById("configAppName"),
+        appType: document.getElementById("configAppType"),
+        framework: document.getElementById("configFramework"),
+        colorScheme: document.getElementById("configColorScheme"),
+        primaryColor: document.getElementById("configPrimaryColor"),
+        appVersion: document.getElementById("configAppVersion")
+      };
+
+      const frameworkOptions = {
+        web: [["nextjs", "Next.js"], ["react", "React"],
+          ["html-css-js", "HTML / CSS / JavaScript"]],
+        mobile: [["expo", "Expo"], ["react-native", "React Native"]],
+        desktop: [["electron", "Electron"]],
+        game: [["babylonjs", "Babylon.js"],
+          ["html-css-js", "HTML / CSS / JavaScript"]]
+      };
+
+      function updateFrameworkOptions(preferred) {
+        const options = frameworkOptions[fields.appType.value] || [];
+        fields.framework.replaceChildren();
+        for (const [value, label] of options) {
+          const option = document.createElement("option");
+          option.value = value;
+          option.textContent = label;
+          fields.framework.append(option);
+        }
+        if (options.some(([value]) => value === preferred)) {
+          fields.framework.value = preferred;
+        }
+      }
+
+      function readConfiguration() {
+        try {
+          const value = JSON.parse(
+            localStorage.getItem("appbuilder-configuration") || "{}"
+          );
+          return value && typeof value === "object" && !Array.isArray(value)
+            ? value : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function fillForm(config) {
+        fields.appName.value = config.appName || "AppBuilder";
+        fields.appType.value = frameworkOptions[config.appType]
+          ? config.appType : "web";
+        updateFrameworkOptions(config.framework);
+        fields.colorScheme.value =
+          ["light", "dark", "custom"].includes(config.colorScheme)
+            ? config.colorScheme : "light";
+        fields.primaryColor.value =
+          /^#[0-9a-f]{6}$/i.test(config.primaryColor || "")
+            ? config.primaryColor : "#5b5bd6";
+        fields.appVersion.value = config.appVersion || "1.0.0";
+      }
+
+      function applyConfiguration(config) {
+        document.title = config.appName + " — Dashboard";
+        document.getElementById("page-title").textContent = config.appName;
+
+        if (config.colorScheme === "light" || config.colorScheme === "dark") {
+          root.dataset.theme = config.colorScheme;
+        }
+
+        root.style.setProperty("--accent", config.primaryColor);
+        root.style.setProperty("--accent-hover", config.primaryColor);
+        root.style.setProperty("--accent-soft",
+          root.dataset.theme === "dark" ? "#292947" : "#eeeeff");
+
+        const dark = root.dataset.theme === "dark";
+        const themeButton = document.getElementById("themeButton");
+        document.getElementById("themeIcon").textContent = dark ? "☀" : "☾";
+        themeButton.setAttribute("aria-label",
+          dark ? "Switch to light mode" : "Switch to dark mode");
+        themeButton.setAttribute("title",
+          dark ? "Switch to light mode" : "Switch to dark mode");
+        document.getElementById("themeColor").setAttribute(
+          "content", dark ? "#10121b" : "#f5f7fc");
+      }
+
+      function openModal() {
+        fillForm(readConfiguration());
+        status.textContent = "";
+        backdrop.hidden = false;
+        document.body.style.overflow = "hidden";
+        fields.appName.focus();
+      }
+
+      function closeModal() {
+        backdrop.hidden = true;
+        document.body.style.overflow = "";
+        openButton.focus();
+      }
+
+      openButton.addEventListener("click", openModal);
+      closeButton.addEventListener("click", closeModal);
+      cancelButton.addEventListener("click", closeModal);
+      backdrop.addEventListener("click", event => {
+        if (event.target === backdrop) closeModal();
+      });
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !backdrop.hidden) closeModal();
+        if (event.key === "Tab" && !backdrop.hidden) {
+          const focusable = [...backdrop.querySelectorAll(
+            'button, input, select, [href], [tabindex]:not([tabindex="-1"])'
+          )].filter(el => !el.disabled);
+          const first = focusable[0];
+          const last = focusable[focusable.length - 1];
+          if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus();
+          }
+        }
+      });
+
+      fields.appType.addEventListener("change", () => {
+        updateFrameworkOptions();
+      });
+
+      form.addEventListener("submit", event => {
+        event.preventDefault();
+        if (!form.reportValidity()) return;
+
+        const config = {
+          appName: fields.appName.value.trim(),
+          appType: fields.appType.value,
+          framework: fields.framework.value,
+          colorScheme: fields.colorScheme.value,
+          primaryColor: fields.primaryColor.value,
+          appVersion: fields.appVersion.value.trim()
+        };
+
+        if (!config.appName || !config.appVersion) {
+          status.textContent = "App name and version are required.";
+          return;
+        }
+
+        try {
+          localStorage.setItem("appbuilder-configuration", JSON.stringify(config));
+        } catch {
+          status.textContent = "Could not save configuration in this browser.";
+          return;
+        }
+
+        applyConfiguration(config);
+        closeModal();
+      });
+
+      const saved = readConfiguration();
+      fillForm(saved);
+      applyConfiguration({
+        appName: saved.appName || "AppBuilder",
+        colorScheme: saved.colorScheme || "light",
+        primaryColor: /^#[0-9a-f]{6}$/i.test(saved.primaryColor || "")
+          ? saved.primaryColor : "#5b5bd6"
+      });
+    })();
+
     (() => {
       const categorySelect = document.getElementById("category-select");
       const itemSelect = document.getElementById("item-select");
