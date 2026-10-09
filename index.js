@@ -256,6 +256,63 @@ export function renderDashboard() {
 
     .environment-select:hover { border-color: var(--accent); }
 
+    .table-ui {
+      margin-top: 24px;
+      overflow: hidden;
+    }
+
+    .table-ui-description {
+      margin: -4px 0 18px;
+      color: var(--muted);
+      font-size: .9rem;
+    }
+
+    .table-ui-scroll {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+    }
+
+    .table-ui table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+
+    .table-ui th,
+    .table-ui td {
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--border);
+      overflow-wrap: anywhere;
+      vertical-align: top;
+    }
+
+    .table-ui th {
+      background: var(--bg);
+      font-size: .82rem;
+      font-weight: 750;
+    }
+
+    .table-ui td:first-child {
+      width: 35%;
+      color: var(--muted);
+      font-weight: 650;
+    }
+
+    .table-ui tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .table-ui-empty {
+      padding: 24px 16px;
+      border: 1px dashed var(--border);
+      border-radius: 14px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+
     @media (max-width: 480px) {
       .topbar { min-height: 68px; }
       .theme-button { width: 40px; height: 40px; border-radius: 12px; }
@@ -312,7 +369,7 @@ export function renderDashboard() {
       <select class="environment-select" id="category-select" name="category">
         <option value="">Choose a category</option>
         ${categories.map((item) => `
-        <option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}</option>
+        <option value="${escapeHtml(item.id)}">${escapeHtml(item.name)}</option>
         `).join("")}
       </select>
     </section>
@@ -323,29 +380,144 @@ export function renderDashboard() {
         <option value="">Choose a category first</option>
       </select>
     </section>
+
+    <section class="dashboard-card table-ui" aria-label="Table UI">
+      <h2 class="field-label">Table UI</h2>
+      <p class="table-ui-description" id="table-ui-description">
+        Select a category and item to view its stored fields.
+      </p>
+      <div id="table-ui-content" class="table-ui-empty" role="status">
+        No item selected.
+      </div>
+    </section>
   </main>
 
   <script>
     (() => {
       const categorySelect = document.getElementById("category-select");
       const itemSelect = document.getElementById("item-select");
+      const tableContent = document.getElementById("table-ui-content");
+      const tableDescription = document.getElementById("table-ui-description");
+      let currentItems = [];
 
-      categorySelect.addEventListener("change", () => {
-        itemSelect.replaceChildren();
+      function showEmpty(message) {
+        tableContent.replaceChildren();
+        tableContent.className = "table-ui-empty";
+        tableContent.textContent = message;
+        tableDescription.textContent =
+          "Select a category and item to view its stored fields.";
+      }
 
-        const option = document.createElement("option");
-        option.value = "";
+      function renderSelectedItem() {
+        const selectedItem = currentItems.find(
+          (item) => String(item.id) === itemSelect.value
+        );
 
-        if (!categorySelect.value) {
-          option.textContent = "Choose a category first";
-          itemSelect.disabled = true;
-        } else {
-          option.textContent = "No items available";
-          itemSelect.disabled = true;
+        if (!selectedItem) {
+          showEmpty("No item selected.");
+          return;
         }
 
-        itemSelect.append(option);
+        tableContent.replaceChildren();
+        tableContent.className = "table-ui-scroll";
+
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const headerRow = document.createElement("tr");
+
+        for (const label of ["Field", "Value"]) {
+          const th = document.createElement("th");
+          th.scope = "col";
+          th.textContent = label;
+          headerRow.append(th);
+        }
+
+        thead.append(headerRow);
+        table.append(thead);
+
+        const tbody = document.createElement("tbody");
+        for (const [key, value] of Object.entries(selectedItem)) {
+          const row = document.createElement("tr");
+          const fieldCell = document.createElement("td");
+          const valueCell = document.createElement("td");
+
+          fieldCell.textContent = key;
+          valueCell.textContent =
+            value === null || value === undefined
+              ? ""
+              : typeof value === "object"
+                ? JSON.stringify(value)
+                : String(value);
+
+          row.append(fieldCell, valueCell);
+          tbody.append(row);
+        }
+
+        table.append(tbody);
+        tableContent.append(table);
+        tableDescription.textContent =
+          "Stored fields for " + String(selectedItem.name ?? "selected item") + ".";
+      }
+
+      categorySelect.addEventListener("change", async () => {
+        itemSelect.replaceChildren();
+        itemSelect.disabled = true;
+        currentItems = [];
+        showEmpty("Choose an item to display its fields.");
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = categorySelect.value
+          ? "Loading items..."
+          : "Choose a category first";
+        itemSelect.append(placeholder);
+
+        if (!categorySelect.value) return;
+
+        try {
+          const response = await fetch(
+            "/api/items?categoryId=" + encodeURIComponent(categorySelect.value)
+          );
+          if (!response.ok) throw new Error("Unable to load items");
+
+          currentItems = await response.json();
+          if (!Array.isArray(currentItems)) {
+            throw new Error("Invalid items response");
+          }
+
+          itemSelect.replaceChildren();
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = currentItems.length
+            ? "Choose an item"
+            : "No items available";
+          itemSelect.append(option);
+
+          for (const item of currentItems) {
+            const itemOption = document.createElement("option");
+            itemOption.value = item.id;
+            itemOption.textContent = item.name ?? "Item " + item.id;
+            itemSelect.append(itemOption);
+          }
+
+          itemSelect.disabled = currentItems.length === 0;
+          showEmpty(
+            currentItems.length
+              ? "Select an item to display its fields."
+              : "No items exist in this category yet."
+          );
+        } catch {
+          currentItems = [];
+          itemSelect.replaceChildren();
+          const option = document.createElement("option");
+          option.value = "";
+          option.textContent = "Failed to load items";
+          itemSelect.append(option);
+          showEmpty("Could not load items. Please try again.");
+        }
       });
+
+      itemSelect.addEventListener("change", renderSelectedItem);
     })();
 
     (() => {

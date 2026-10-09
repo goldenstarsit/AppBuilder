@@ -14,5 +14,15 @@
       "name",
       "description"
     ]
+  },
+  "items": {
+    "columns": [
+      "id",
+      "categoryId",
+      "name",
+      "description",
+      "type",
+      "value"
+    ]
   }
 }

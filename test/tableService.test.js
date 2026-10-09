@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-
 import {
   listTables,
   getTable,
@@ -11,13 +10,16 @@ import {
 test("table service lists registered tables", () => {
   const tables = listTables();
 
-  assert.equal(tables.length, 2);
+  assert.equal(tables.length, 3);
 
   const environmentTable = tables.find(
     (table) => table.name === "environmentDetails"
   );
   const categoriesTable = tables.find(
     (table) => table.name === "categories"
+  );
+  const itemsTable = tables.find(
+    (table) => table.name === "items"
   );
 
   assert.ok(environmentTable);
@@ -34,6 +36,16 @@ test("table service lists registered tables", () => {
     "id",
     "name",
     "description"
+  ]);
+
+  assert.ok(itemsTable);
+  assert.deepEqual(itemsTable.schema.columns, [
+    "id",
+    "categoryId",
+    "name",
+    "description",
+    "type",
+    "value"
   ]);
 });
 
