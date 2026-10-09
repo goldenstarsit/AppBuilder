@@ -316,9 +316,38 @@ export function renderDashboard() {
         `).join("")}
       </select>
     </section>
+
+    <section class="dashboard-card" aria-label="Item selection">
+      <label class="field-label" for="item-select">Select Item</label>
+      <select class="environment-select" id="item-select" name="item" disabled>
+        <option value="">Choose a category first</option>
+      </select>
+    </section>
   </main>
 
   <script>
+    (() => {
+      const categorySelect = document.getElementById("category-select");
+      const itemSelect = document.getElementById("item-select");
+
+      categorySelect.addEventListener("change", () => {
+        itemSelect.replaceChildren();
+
+        const option = document.createElement("option");
+        option.value = "";
+
+        if (!categorySelect.value) {
+          option.textContent = "Choose a category first";
+          itemSelect.disabled = true;
+        } else {
+          option.textContent = "No items available";
+          itemSelect.disabled = true;
+        }
+
+        itemSelect.append(option);
+      });
+    })();
+
     (() => {
       const root = document.documentElement;
       const button = document.getElementById("themeButton");
