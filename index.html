@@ -53,33 +53,16 @@
     <select class="environment-select" id="tableSelect" name="item">
       <option value="">Loading tables…</option>
     </select>
-    <p class="status-line" id="statusMessage" role="status" aria-live="polite">Loading table definitions…</p>
+    <p class="status-line" id="itemStatusMessage" role="status" aria-live="polite">Loading table definitions…</p>
   </section>
 
     <section class="dashboard-card" aria-label="Table">
-      <h2 class="field-label">Table</h2>
-      <p class="table-ui-description">Sample records displayed in rows and columns.</p>
-      <div class="table-ui-scroll">
-        <table style="width:100%; border-collapse:collapse; text-align:left;">
-          <thead>
-            <tr>
-              <th style="padding:12px; border-bottom:1px solid var(--border);">ID</th>
-              <th style="padding:12px; border-bottom:1px solid var(--border);">Name</th>
-              <th style="padding:12px; border-bottom:1px solid var(--border);">Type</th>
-              <th style="padding:12px; border-bottom:1px solid var(--border);">Value</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr><td style="padding:12px; border-bottom:1px solid var(--border);">1</td><td style="padding:12px; border-bottom:1px solid var(--border);">Ali</td><td style="padding:12px; border-bottom:1px solid var(--border);">String</td><td style="padding:12px; border-bottom:1px solid var(--border);">Hello</td></tr>
-            <tr><td style="padding:12px; border-bottom:1px solid var(--border);">2</td><td style="padding:12px; border-bottom:1px solid var(--border);">Age</td><td style="padding:12px; border-bottom:1px solid var(--border);">Number</td><td style="padding:12px; border-bottom:1px solid var(--border);">25</td></tr>
-            <tr><td style="padding:12px; border-bottom:1px solid var(--border);">3</td><td style="padding:12px; border-bottom:1px solid var(--border);">Active</td><td style="padding:12px; border-bottom:1px solid var(--border);">Boolean</td><td style="padding:12px; border-bottom:1px solid var(--border);">true</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="status-line">3 sample records · 4 columns</p>
+      <h2 class="field-label" id="selectionTableTitle">Platform data</h2>
+      <p class="table-ui-description" id="selectionTableStatus">All platforms</p>
+      <div class="table-ui-scroll" id="selectionTableContent"></div>
     </section>
 
 </main>
-<script src="/index.js" defer></script>
+<script src="/index.js?v=20261010-5" defer></script>
 </body>
 </html>

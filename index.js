@@ -14,6 +14,9 @@
   const columnCount = $("columnCount");
   const tableBadge = $("tableBadge");
   const selectedTableName = $("selectedTableName");
+  const selectionTableTitle = $("selectionTableTitle");
+  const selectionTableStatus = $("selectionTableStatus");
+  const selectionTableContent = $("selectionTableContent");
   const visibleCount = $("visibleCount");
   const refreshButton = $("refreshButton");
   const themeButton = $("themeButton");
@@ -21,6 +24,7 @@
 
   let tables = [];
   let selectedTable = null;
+  let itemTableData = null;
 
   function element(tag, className = "", value) {
     const node = document.createElement(tag);
@@ -52,6 +56,77 @@
       row && typeof row === "object" ? Object.keys(row) : []
     );
     return [...new Set([...declared, ...discovered])];
+  }
+
+  function renderSelectionTable() {
+    if (!selectionTableTitle || !selectionTableStatus || !selectionTableContent) return;
+
+    const platformName = platformSelect?.selectedOptions?.[0]?.textContent?.trim() || "";
+    const categoryName = categorySelect?.value?.trim() || "";
+    const itemId = tableSelect?.value || "";
+
+    let source;
+    let rows;
+    let title;
+    let description;
+
+    if (!platformSelect?.value) {
+      source = tables.find(table => table.name === "platform");
+      rows = source?.rows || [];
+      title = "Platform data";
+      description = `${rows.length} platforms`;
+    } else if (!categoryName) {
+      source = tables.find(table => table.name === "category");
+      const flag = categoryFlagName(platformName);
+      rows = (source?.rows || []).filter(row => {
+        const value = row[flag];
+        return value === true || value === 1 || value === "1";
+      });
+      title = "Category data";
+      description = `${rows.length} categories for ${platformName}`;
+    } else {
+      source = tables.find(table => table.name === "item");
+      rows = (source?.rows || []).filter(row =>
+        String(row.type || "").trim().toLowerCase() === categoryName.toLowerCase()
+      );
+
+      if (itemId) {
+        rows = rows.filter(row => String(row.id) === String(itemId));
+        title = "Selected item data";
+        description = rows.length ? `Item ID ${itemId}` : "Selected item not found";
+      } else {
+        title = "Item data";
+        description = `${rows.length} items in ${categoryName}`;
+      }
+    }
+
+    selectionTableTitle.textContent = title;
+    selectionTableStatus.textContent = description;
+
+    if (!source) {
+      selectionTableContent.textContent = "Table data is not available.";
+      return;
+    }
+
+    const columns = columnsFor(source);
+    if (!rows.length) {
+      selectionTableContent.textContent = "No rows to display.";
+      return;
+    }
+
+    const escape = value => String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char]);
+
+    selectionTableContent.innerHTML = `
+      <table class="data-table">
+        <thead><tr>${columns.map(column =>
+          `<th scope="col">${escape(column)}</th>`
+        ).join("")}</tr></thead>
+        <tbody>${rows.map(row => `<tr>${columns.map(column =>
+          `<td>${escape(row[column])}</td>`
+        ).join("")}</tr>`).join("")}</tbody>
+      </table>`;
   }
 
   function renderRecords() {
@@ -141,21 +216,30 @@
     }
   }
 
-  function selectTable(name) {
-    selectedTable = tables.find(table => table.name === name) ?? null;
-    searchInput.value = "";
-    searchInput.disabled = !selectedTable;
-    tableBadge.textContent = selectedTable?.name ?? "No table selected";
-    selectedTableName.textContent = selectedTable?.name ?? "Select a table";
-    recordCount.textContent = selectedTable ? String(selectedTable.rows.length) : "—";
-    columnCount.textContent = selectedTable ? String(columnsFor(selectedTable).length) : "—";
-    renderRecords();
-    renderSchema();
+  function selectItem(id) {
+    const row = itemTableData?.rows?.find(item => String(item.id) === String(id));
+    selectedTable = row && itemTableData
+      ? { ...itemTableData, rows: [row] }
+      : null;
+
+    if (searchInput) {
+      searchInput.value = "";
+      searchInput.disabled = !selectedTable;
+    }
+    if (tableBadge) tableBadge.textContent = row?.name ?? "No item selected";
+    if (selectedTableName) selectedTableName.textContent = row?.name ?? "Select an item";
+    if (recordCount) recordCount.textContent = selectedTable ? "1" : "—";
+    if (columnCount) columnCount.textContent = selectedTable
+      ? String(columnsFor(selectedTable).length)
+      : "—";
+    if (recordsContent) renderRecords();
+    if (schemaContent) renderSchema();
   }
 
   async function requestJson(url) {
     const response = await fetch(url, {
-      headers: { Accept: "application/json" }
+      headers: { Accept: "application/json" },
+      signal: AbortSignal.timeout(10000)
     });
     const data = await response.json().catch(() => null);
     if (!response.ok) {
@@ -209,6 +293,7 @@
       categorySelect.disabled = true;
       categorySelect.replaceChildren(new Option("Select a platform first…", ""));
       if (categoryStatus) categoryStatus.textContent = "Choose a platform to load categories.";
+      await loadItems();
       return;
     }
 
@@ -218,10 +303,13 @@
 
     try {
       const table = await requestJson("/api/tables/category");
-      if (!Array.isArray(table.rows)) throw new Error("Invalid category table response.");
+      if (!Array.isArray(table.rows)) {
+        throw new Error("Invalid category table response.");
+      }
 
       const flag = categoryFlagName(platformName);
       const matching = table.rows.filter(row => row[flag] === true);
+
       categorySelect.replaceChildren(
         new Option(matching.length ? "Select a category…" : "No categories available", "")
       );
@@ -239,20 +327,76 @@
       }
     } catch (error) {
       categorySelect.replaceChildren(new Option("Could not load categories", ""));
-      if (categoryStatus) categoryStatus.textContent = error.message || "Could not load categories.";
+      if (categoryStatus) {
+        categoryStatus.textContent = error.message || "Could not load categories.";
+      }
       console.error("Unable to load categories:", error);
     } finally {
       categorySelect.disabled = false;
+      await loadItems();
+    }
+  }
+
+  async function loadItems() {
+    const categoryName = categorySelect?.value?.trim() || "";
+
+    tableSelect.disabled = true;
+    tableSelect.replaceChildren(
+      new Option(categoryName ? "Loading items…" : "Select a category first…", "")
+    );
+    if (!categoryName) {
+      selectItem("");
+      tableSelect.disabled = true;
+      return;
+    }
+
+    try {
+      selectItem("");
+      itemTableData = await requestJson("/api/tables/item");
+
+      if (!Array.isArray(itemTableData.rows)) {
+        throw new Error("Invalid item table response.");
+      }
+
+      const matching = itemTableData.rows.filter(
+        row => String(row.type || "").trim() === categoryName
+      );
+
+      tableSelect.replaceChildren(
+        new Option(matching.length ? "Select an item…" : "No items for this category", "")
+      );
+
+      for (const row of matching) {
+        tableSelect.add(new Option(row.name, String(row.id)));
+      }
+
+      tableSelect.disabled = matching.length === 0;
+
+      if (categoryStatus) {
+        categoryStatus.textContent = `${matching.length} items available for ${categoryName}.`;
+      }
+
+      console.log(`Category "${categoryName}": loaded ${matching.length} items.`);
+    } catch (error) {
+      itemTableData = null;
+      tableSelect.replaceChildren(new Option("Could not load items", ""));
+      tableSelect.disabled = true;
+
+      const errorDetails = `${error?.name || "Error"}: ${error?.message || String(error)}`;
+      if (categoryStatus) {
+        categoryStatus.textContent = `Item loading failed: ${errorDetails}`;
+      }
+
+      console.error("Unable to load items:", error);
     }
   }
 
   async function loadTables() {
-    refreshButton.disabled = true;
-    tableSelect.disabled = true;
-    statusMessage.className = "status";
-    statusMessage.textContent = "Loading tables…";
-
-    const previousName = tableSelect.value;
+    if (refreshButton) refreshButton.disabled = true;
+    if (statusMessage) {
+      statusMessage.className = "status";
+      statusMessage.textContent = "Loading tables…";
+    }
 
     try {
       const list = await requestJson("/api/tables");
@@ -268,40 +412,22 @@
       }));
 
       tables = loaded.filter(Boolean);
-      tableCount.textContent = String(tables.length);
-      tableSelect.replaceChildren();
-
-      if (!tables.length) {
-        tableSelect.append(new Option("No tables available", ""));
-        selectTable("");
-        statusMessage.textContent = "No table schemas were found.";
-        return;
+      if (tableCount) tableCount.textContent = String(tables.length);
+      if (statusMessage) {
+        statusMessage.textContent =
+          `Loaded ${tables.length} table${tables.length === 1 ? "" : "s"}.`;
       }
-
-      tableSelect.append(new Option("Select a table…", ""));
-      for (const table of tables) {
-        tableSelect.append(new Option(table.name, table.name));
-      }
-
-      const nextName = tables.some(table => table.name === previousName)
-        ? previousName
-        : tables[0].name;
-
-      tableSelect.value = nextName;
-      selectTable(nextName);
-      statusMessage.textContent = `Loaded ${tables.length} table${tables.length === 1 ? "" : "s"}.`;
     } catch (error) {
       tables = [];
-      tableCount.textContent = "—";
-      recordCount.textContent = "—";
-      columnCount.textContent = "—";
-      tableSelect.replaceChildren(new Option("Could not load tables", ""));
-      selectTable("");
-      statusMessage.className = "status error";
-      statusMessage.textContent = error.message || "Could not load table data.";
+      if (tableCount) tableCount.textContent = "—";
+      if (statusMessage) {
+        statusMessage.className = "status error";
+        statusMessage.textContent = error.message || "Could not load table data.";
+      }
+      console.error("Unable to load tables:", error);
     } finally {
-      tableSelect.disabled = false;
-      refreshButton.disabled = false;
+      if (refreshButton) refreshButton.disabled = false;
+      renderSelectionTable();
     }
   }
 
@@ -322,8 +448,22 @@
     }
   }
 
-  platformSelect?.addEventListener("change", loadCategories);
-  tableSelect?.addEventListener("change", () => selectTable(tableSelect.value));
+  platformSelect?.addEventListener("change", async () => {
+    await loadCategories();
+    renderSelectionTable();
+  });
+  categorySelect?.addEventListener("change", async () => {
+    if (categoryStatus) {
+      categoryStatus.textContent = `Category changed: ${categorySelect.value || "(empty)"}`;
+    }
+    tableSelect.value = "";
+    await loadItems();
+    renderSelectionTable();
+  });
+  tableSelect?.addEventListener("change", () => {
+    selectItem(tableSelect.value);
+    renderSelectionTable();
+  });
   searchInput?.addEventListener("input", renderRecords);
   refreshButton?.addEventListener("click", loadTables);
   themeButton?.addEventListener("click", () => {
