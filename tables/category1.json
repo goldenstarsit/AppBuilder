@@ -1,0 +1,102 @@
+[
+  {
+    "id": 1,
+    "name": "Attributes",
+    "description": "Reusable element attribute definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": true,
+    "basicWeb": true
+  },
+  {
+    "id": 2,
+    "name": "Components",
+    "description": "Reusable application component definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": false,
+    "basicWeb": false
+  },
+  {
+    "id": 3,
+    "name": "Data",
+    "description": "Application data definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": true,
+    "basicWeb": true
+  },
+  {
+    "id": 4,
+    "name": "Events",
+    "description": "Reusable event definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": true,
+    "basicWeb": true
+  },
+  {
+    "id": 5,
+    "name": "Layouts",
+    "description": "Reusable application layout definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": false,
+    "basicWeb": false
+  },
+  {
+    "id": 6,
+    "name": "Navigation",
+    "description": "Application navigation definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": false,
+    "basicWeb": true
+  },
+  {
+    "id": 7,
+    "name": "Pages",
+    "description": "Application page definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": false,
+    "basicWeb": true
+  },
+  {
+    "id": 8,
+    "name": "Scripts",
+    "description": "Reusable JavaScript definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": true,
+    "basicWeb": true
+  },
+  {
+    "id": 9,
+    "name": "Styles",
+    "description": "Reusable CSS style definitions",
+    "web": true,
+    "mobile": true,
+    "desktop": true,
+    "game": false,
+    "basicWeb": true
+  },
+  {
+    "id": 10,
+    "name": "Tags",
+    "description": "Reusable tag definitions and instances",
+    "web": true,
+    "mobile": false,
+    "desktop": false,
+    "game": false,
+    "basicWeb": true
+  }
+]

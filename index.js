@@ -1,8 +1,10 @@
-(() => {
-  "use strict";
+(() => {  "use strict";
 
   const $ = id => document.getElementById(id);
   const tableSelect = $("tableSelect");
+  const platformSelect = $("platformSelect");
+  const categorySelect = $("categorySelect");
+  const categoryStatus = $("categoryStatus");
   const searchInput = $("searchInput");
   const recordsContent = $("recordsContent");
   const schemaContent = $("schemaContent");
@@ -162,6 +164,88 @@
     return data;
   }
 
+  async function loadPlatforms() {
+    if (!platformSelect) return;
+
+    platformSelect.disabled = true;
+    platformSelect.replaceChildren(new Option("Loading platforms…", ""));
+
+    try {
+      const table = await requestJson("/api/tables/platform");
+      if (!Array.isArray(table.rows)) {
+        throw new Error("Invalid platform table response.");
+      }
+
+      platformSelect.replaceChildren(new Option("Select a platform…", ""));
+      for (const row of table.rows) {
+        if (typeof row.name === "string") {
+          platformSelect.append(new Option(row.name, row.name));
+        }
+      }
+    } catch (error) {
+      platformSelect.replaceChildren(new Option("Could not load platforms", ""));
+      console.error("Unable to load platforms:", error);
+    } finally {
+      platformSelect.disabled = false;
+      await loadCategories();
+    }
+  }
+
+
+  function categoryFlagName(platformName) {
+    const words = String(platformName || "").match(/[A-Za-z0-9]+/g) || [];
+    return words.length
+      ? words[0].toLowerCase() + words.slice(1).map(word =>
+          word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+        ).join("")
+      : "";
+  }
+
+  async function loadCategories() {
+    if (!categorySelect) return;
+
+    const platformName = platformSelect?.value || "";
+    if (!platformName) {
+      categorySelect.disabled = true;
+      categorySelect.replaceChildren(new Option("Select a platform first…", ""));
+      if (categoryStatus) categoryStatus.textContent = "Choose a platform to load categories.";
+      return;
+    }
+
+    categorySelect.disabled = true;
+    categorySelect.replaceChildren(new Option("Loading categories…", ""));
+    if (categoryStatus) categoryStatus.textContent = "Loading categories…";
+
+    try {
+      const table = await requestJson("/api/tables/category");
+      if (!Array.isArray(table.rows)) throw new Error("Invalid category table response.");
+
+      const flag = categoryFlagName(platformName);
+      const matching = table.rows.filter(row => row[flag] === true);
+      categorySelect.replaceChildren(
+        new Option(matching.length ? "Select a category…" : "No categories available", "")
+      );
+
+      for (const row of matching) {
+        if (typeof row.name === "string") {
+          categorySelect.append(new Option(row.name, row.name));
+        }
+      }
+
+      if (categoryStatus) {
+        categoryStatus.textContent = matching.length
+          ? `${matching.length} categories available for ${platformName}.`
+          : `No categories are enabled for ${platformName}.`;
+      }
+    } catch (error) {
+      categorySelect.replaceChildren(new Option("Could not load categories", ""));
+      if (categoryStatus) categoryStatus.textContent = error.message || "Could not load categories.";
+      console.error("Unable to load categories:", error);
+    } finally {
+      categorySelect.disabled = false;
+    }
+  }
+
   async function loadTables() {
     refreshButton.disabled = true;
     tableSelect.disabled = true;
@@ -238,6 +322,7 @@
     }
   }
 
+  platformSelect?.addEventListener("change", loadCategories);
   tableSelect?.addEventListener("change", () => selectTable(tableSelect.value));
   searchInput?.addEventListener("input", renderRecords);
   refreshButton?.addEventListener("click", loadTables);
@@ -251,5 +336,6 @@
     setTheme("light", false);
   }
 
+  loadPlatforms();
   loadTables();
 })();

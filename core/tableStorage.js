@@ -1,7 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const TABLES_DIR = path.resolve("tables");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const TABLES_DIR = path.join(__dirname, "..", "tables");
 const MAX_INDEX_FILE_SIZE = 100 * 1024;
 
 function readJson(file, fallback) {
@@ -90,8 +93,69 @@ function rebuildDataFile() {
   writeJson(path.join(TABLES_DIR, "data.json"), data);
 }
 
+
+function normalizeRows(rows) {
+  rows.sort((a, b) =>
+    String(a.name ?? "").localeCompare(String(b.name ?? ""), undefined, {
+      sensitivity: "base",
+      numeric: true
+    })
+  );
+  rows.forEach((row, index) => { row.id = index + 1; });
+  return rows;
+}
+
+function platformFlag(name) {
+  const words = String(name ?? "").match(/[A-Za-z0-9]+/g) || [];
+  return words.length
+    ? words[0].toLowerCase() + words.slice(1).map(word =>
+        word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
+      ).join("")
+    : "";
+}
+
+function syncCategorySchema() {
+  const schemaPath = tableFile("category");
+  if (!fs.existsSync(schemaPath)) return;
+
+  const schema = readJson(schemaPath, null);
+  if (!schema || !Array.isArray(schema.columns)) return;
+
+  const flags = getRows("platform").map(row => platformFlag(row.name));
+  if (flags.some(flag => !flag) || new Set(flags).size !== flags.length) {
+    throw new Error("Platform names must produce unique category flag names.");
+  }
+
+  const rows = getRows("category");
+  const allowed = ["id", "name", "description", ...flags];
+
+  schema.columns = allowed;
+  schema.constraints = {
+    id: { type: "integer", unique: true, required: true },
+    name: { type: "string", unique: true, required: true },
+    ...Object.fromEntries(flags.map(flag => [
+      flag, { type: "boolean", required: true }
+    ]))
+  };
+
+  for (const row of rows) {
+    for (const flag of flags) {
+      if (typeof row[flag] !== "boolean") row[flag] = false;
+    }
+    for (const key of Object.keys(row)) {
+      if (!allowed.includes(key)) delete row[key];
+    }
+  }
+
+  normalizeRows(rows);
+  writeJson(schemaPath, schema);
+  writeIndexedFiles("category", rows);
+}
+
 function persistTable(name, rows) {
+  normalizeRows(rows);
   writeIndexedFiles(name, rows);
+  if (name === "platform") syncCategorySchema();
   rebuildDataFile();
 }
 
@@ -129,13 +193,12 @@ export function insert(name, row) {
 
   const rows = getRows(name);
   const schema = getSchemaDefinition(name);
-
   if (schema.constraints?.name?.unique &&
       rows.some(item => item.name === row.name)) {
     throw new Error(`Duplicate name: ${row.name}`);
   }
 
-  const next = { ...row, id: rows.length + 1 };
+  const next = { ...row, id: 0 };
   rows.push(next);
   persistTable(name, rows);
   return next;
@@ -152,9 +215,10 @@ export function update(name, id, changes) {
     throw new Error(`Duplicate name: ${changes.name}`);
   }
 
-  rows[index] = { ...rows[index], ...changes, id };
+  const updated = rows[index];
+  Object.assign(updated, changes);
   persistTable(name, rows);
-  return rows[index];
+  return updated;
 }
 
 export function remove(name, id) {
@@ -164,7 +228,6 @@ export function remove(name, id) {
   if (index < 0) return false;
 
   rows.splice(index, 1);
-  rows.forEach((row, i) => { row.id = i + 1; });
   persistTable(name, rows);
   return true;
 }

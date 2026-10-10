@@ -1,0 +1,45 @@
+{
+  "columns": [
+    "id",
+    "name",
+    "description",
+    "web",
+    "mobile",
+    "desktop",
+    "game",
+    "basicWeb"
+  ],
+  "constraints": {
+    "id": {
+      "type": "integer",
+      "unique": true,
+      "required": true
+    },
+    "name": {
+      "type": "string",
+      "unique": true,
+      "required": true
+    },
+    "web": {
+      "type": "boolean",
+      "required": true
+    },
+    "mobile": {
+      "type": "boolean",
+      "required": true
+    },
+    "desktop": {
+      "type": "boolean",
+      "required": true
+    },
+    "game": {
+      "type": "boolean",
+      "required": true
+    },
+    "basicWeb": {
+      "type": "boolean",
+      "required": true
+    }
+  },
+  "idPolicy": "sequential_from_1_reassign_after_delete"
+}
