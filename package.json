@@ -1,0 +1,7 @@
+{
+  "name": "appbuilder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "AppBuilder application",
+  "type": "module"
+}
